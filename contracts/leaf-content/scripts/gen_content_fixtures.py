@@ -159,7 +159,9 @@ def write_fixture(base_dir: str, name: str, pak: dict, expect: dict,
         os.chmod(path, 0o644)
 
     for rel in directories or []:
-        os.makedirs(os.path.join(fixture_dir, rel), exist_ok=True)
+        path = os.path.join(fixture_dir, rel)
+        os.makedirs(path, exist_ok=True)
+        open(os.path.join(path, ".gitkeep"), "a").close()
 
     for rel in executable or []:
         path = os.path.join(fixture_dir, rel)
