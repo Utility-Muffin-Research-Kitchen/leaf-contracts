@@ -2,12 +2,13 @@
 
 Date: 2026-08-28
 
-This is the **normative text** for the three interfaces that let a `.pak`
+This is the **normative text** for the four interfaces that let a `.pak`
 contribute a system and the emulator that runs it:
 
 | Contract | Scope |
 | --- | --- |
 | **CONTENT-1** | the `provides` block a content pak declares in its `pak.json` |
+| **CONTENT-SCRAPE-1** | optional, backward-compatible scraping identity metadata beside `provides` |
 | **CAT-1** | the effective catalog: generation directories, the selector, and the stamp |
 | **STORE-CONTENT-1** | the storefront `content[]` lane |
 
@@ -283,6 +284,138 @@ in turn strand an extension that named it.
 
 ---
 
+## CONTENT-SCRAPE-1 — optional scraping identity
+
+`CONTENT-SCRAPE-1` is a fail-soft companion to CONTENT-1. It lets a pak
+describe how ScreenScraper should identify descriptor files without changing
+the frozen `provides` object or teaching Jawaka about one system or extension.
+
+The companion is a top-level sibling of `provides`:
+
+```json
+{
+  "provides": {
+    "schema": 1,
+    "systems": [
+      {
+        "id": "SCUMMVM",
+        "extensions": ["scummvm", "svm"]
+      }
+    ]
+  },
+  "content_scrape": {
+    "schema": 1,
+    "systems": [
+      {
+        "id": "SCUMMVM",
+        "name_source": "descriptor",
+        "lookup_extension": "scummvm"
+      }
+    ]
+  }
+}
+```
+
+The abbreviated `provides` above omits required CONTENT-1 fields. The complete
+pak must still pass CONTENT-1 independently.
+
+Already-released CONTENT-1 validators accept unrelated top-level `pak.json`
+properties and therefore ignore `content_scrape`. They accept the contribution
+and retain filename scraping. This silent downgrade is intentional because the
+companion affects artwork lookup only; it cannot affect discovery, launch,
+cores, or whether CONTENT-1 is accepted.
+
+### Shape and rejection reasons
+
+| Field | Required | Rule | Reason |
+| --- | --- | --- | --- |
+| `schema` | yes | Exactly integer `1`. | `unknown-content-scrape-schema` |
+| `systems` | yes | Array of 1-32 entries. | `malformed-content-scrape-systems` |
+| `systems[].id` | yes | CONTENT-1 system-id shape; unique in this block. | `malformed-content-scrape-system-id`, `duplicate-content-scrape-system` |
+| `systems[].name_source` | yes | Exactly `descriptor` in v1. | `unknown-content-scrape-name-source` |
+| `systems[].lookup_extension` | yes | CONTENT-1 ROM-extension shape. | `malformed-content-scrape-lookup-extension` |
+| — | — | The block and every entry are objects with no fields beyond those listed. | `malformed-content-scrape`, `malformed-content-scrape-system`, `unknown-content-scrape-field` |
+| — | — | `id` names a system in this pak's accepted `provides.systems[]`. | `unknown-content-scrape-system` |
+| — | — | `lookup_extension` appears in that system's `extensions`. | `undeclared-content-scrape-extension` |
+
+The extension-membership rule is a v1 safety rail. It prevents optional
+metadata from making requests with a suffix the pak does not itself recognize.
+Relax it only in a future companion version with a concrete second adopter.
+
+Missing `content_scrape` is valid and produces no warning. An invalid or
+unsupported companion records its exact reason in catalog diagnostics but
+does **not** refuse a valid CONTENT-1 contribution. The affected system uses
+filename behavior.
+
+### Compilation and provenance
+
+A capable producer handles the companion during effective-catalog compilation,
+never on a runtime request path:
+
+1. Validate CONTENT-1 normally.
+2. Validate `content_scrape` separately and fail-soft.
+3. Run the pure CONTENT-1 merge unchanged.
+4. For each valid companion entry, find the surviving merged system with the
+   same `id` and the same generated `provider` as the contributor.
+5. Add these fields to that effective `systems.json` row:
+
+   ```json
+   "screenscraper_name_source": "descriptor",
+   "screenscraper_lookup_extension": "scummvm"
+   ```
+
+6. When at least one entry affects output, include the provider's complete
+   `pak.json` as relative path `pak.json` in that contributor's existing CAT-1
+   `files[]` fingerprint list. `provides_sha256` remains the canonical hash of
+   `provides` alone.
+
+The decorated `systems.json` is covered by `output.systems_sha256`, and the
+existing generation digest covers both that output and the `pak.json`
+fingerprint. No CAT-1 stamp field, selector rule, or runtime pak read is added.
+Structural readers, including Central Scrutinizer, continue consuming only the
+selected immutable generation.
+
+An entry for a system refused by CONTENT-1 merge affects no output and adds no
+fingerprint. A pak can decorate only a system it contributed; matching an id
+owned by the release or another provider is insufficient.
+
+### Descriptor and request semantics
+
+Descriptor mode reads at most 257 bytes, rejects a file longer than 256 bytes,
+trims ASCII space/tab around its only non-empty logical line, and accepts a
+1-128-byte identity matching:
+
+```text
+^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$
+```
+
+NUL, other control bytes, `/`, `\\`, truncation, read errors, and a second
+non-whitespace line invalidate the descriptor. Invalid raw bytes are never
+logged.
+
+The ordered, case-insensitively de-duplicated candidates are:
+
+1. descriptor identity plus `lookup_extension`;
+2. actual indexed basename;
+3. effective display title plus `lookup_extension`.
+
+All descriptor candidates are name-only: the descriptor bytes are never
+hashed. Each candidate tries the system's ordered ScreenScraper platform ids.
+Within one candidate, an existing hashless/platform recovery may continue when
+a game is found without usable media. If any same-identity variant found a
+game, the aggregate result is no-media and no weaker candidate is tried. Only
+an aggregate game-not-found advances to the next candidate. Cancellation,
+quota, authentication, HTTP, parse, and local errors are terminal.
+
+Filename mode is unchanged. It keeps its existing per-platform hash then
+hashless-name request order and has no effective-title fallback.
+
+Regardless of the successful candidate, artwork stays keyed to the original
+indexed filename stem and neither `games.rom_path` nor the display title is
+rewritten.
+
+---
+
 ## CAT-1 — the effective catalog
 
 ### Layout
@@ -554,14 +687,15 @@ explicit rule:
 ## Change procedure
 
 `content-paks-v1`, `effective-catalog-v1`, and `storefront-content-v1` are
-frozen once the first content pak publishes. Until then:
+frozen once the first content pak publishes. `content-scrape-v1` freezes when
+the first pak using it publishes. Until the applicable freeze:
 
 1. Change this file first. It is the normative text.
 2. Update the schema and the fixture tree in
    [`../contracts/leaf-content/`](../contracts/leaf-content/) to match,
    and re-run `scripts/validate_fixtures.py`.
 3. Every new rejection rule gets **exactly one** invalid fixture whose
-   `expect.json` names its reason slug.
+   recorded expectation names its reason slug.
 4. A breaking change after freeze is a **new** version identifier
    (`content-paks-v2`), never a mutation of v1. `provides.schema` is refused
    rather than guessed at precisely so a v2 pak fails loudly on a v1 device.
