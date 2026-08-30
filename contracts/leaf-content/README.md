@@ -1,8 +1,8 @@
 # `contracts/leaf-content/`
 
-Canonical schemas and fixtures for `CONTENT-1`, `CAT-1`, and
-`STORE-CONTENT-1` — the interfaces that let a `.pak` add a system and the
-emulator that runs it. The normative text is
+Canonical schemas and fixtures for `CONTENT-1`, optional `CONTENT-SCRAPE-1`,
+`CAT-1`, and `STORE-CONTENT-1` — the interfaces that let a `.pak` add a system,
+the emulator that runs it, and optional scraping identity. The normative text is
 [`../../docs/content-paks.md`](../../docs/content-paks.md).
 
 This directory is the machine-checkable half: schemas, fixtures, reference
@@ -13,9 +13,11 @@ contract names.
 ```text
 leaf-content/
 ├── content-paks-v1.schema.json        CONTENT-1  the `provides` block shape
+├── content-scrape-v1.schema.json      CONTENT-SCRAPE-1 optional scrape policy
 ├── effective-catalog-v1.schema.json   CAT-1      the generation stamp shape
 ├── storefront-content-v1.schema.json  STORE-CONTENT-1  the `content[]` lane
 ├── manifests/{valid,invalid}/         one invalid fixture per rejection rule
+├── scrape/fixtures.json               companion shape + ownership rules
 ├── merge/fixtures.json                base + pak inputs → expected merged output
 ├── generations/fixtures.json          selector/stamp/publication lifecycle
 ├── storefront/fixtures.json           lane rules and the gate-unaware view
@@ -37,6 +39,7 @@ them reason for reason:
 | Module | Covers |
 | --- | --- |
 | `content_model.py` | `provides` validation and the merge policy |
+| `scrape_model.py` | optional scrape-policy validation and catalog decoration |
 | `catalog_model.py` | selector resolution, the two validation levels, publication, cleanup |
 | `storefront_model.py` | the `content[]` lane rules and the Open-button rule |
 | `canonical.py` | canonical bytes, the tree hash, the generation digest |

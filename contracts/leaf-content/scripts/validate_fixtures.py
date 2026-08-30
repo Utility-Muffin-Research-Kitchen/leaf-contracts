@@ -11,6 +11,7 @@ offending fixture and exit 1.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -28,6 +29,7 @@ import canonical  # noqa: E402
 import catalog_model  # noqa: E402
 import content_model  # noqa: E402
 import minischema  # noqa: E402
+import scrape_model  # noqa: E402
 import storefront_model  # noqa: E402
 
 FAILURES: list[str] = []
@@ -125,6 +127,78 @@ def run_manifest_fixtures() -> None:
 def _context(fixture_dir: str) -> dict:
     path = os.path.join(fixture_dir, "context.json")
     return load_json(path) if os.path.exists(path) else {}
+
+
+# ---------------------------------------------------------------------------
+# CONTENT-SCRAPE-1 companion metadata
+# ---------------------------------------------------------------------------
+
+def run_scrape_fixtures() -> None:
+    document = load_json(os.path.join(ROOT, "scrape", "fixtures.json"))
+    schema = load_json(os.path.join(ROOT, "content-scrape-v1.schema.json"))
+    seen_reasons: set[str] = set()
+
+    for case in document["cases"]:
+        pak = {"provides": copy.deepcopy(
+            case.get("provides", document["base_provides"]))}
+        if "content_scrape" in case:
+            pak["content_scrape"] = copy.deepcopy(case["content_scrape"])
+
+        schema_ok, schema_err = minischema.is_valid(pak, schema)
+        violations = scrape_model.validate(pak)
+        if case["valid"]:
+            if not schema_ok:
+                fail(f"scrape/{case['name']}: expected schema-valid, got {schema_err}")
+            elif violations:
+                fail(f"scrape/{case['name']}: expected accepted, got "
+                     f"{sorted(violations)}")
+            else:
+                ok(f"scrape/{case['name']}")
+            continue
+
+        reason = case["reason"]
+        if reason in seen_reasons:
+            fail(f"scrape/{case['name']}: duplicate fixture reason {reason}")
+            continue
+        seen_reasons.add(reason)
+        if violations != {reason}:
+            fail(f"scrape/{case['name']}: expected only {reason!r}, got "
+                 f"{sorted(violations)}")
+        elif schema_ok and reason not in {
+                "duplicate-content-scrape-system",
+                "unknown-content-scrape-system",
+                "undeclared-content-scrape-extension"}:
+            fail(f"scrape/{case['name']}: static shape error passed the schema")
+        else:
+            ok(f"scrape/{case['name']} -> {reason}")
+
+    generation_hashes: set[str] = set()
+    for case in document["generation_cases"]:
+        pak = {
+            "provides": copy.deepcopy(document["base_provides"]),
+            "content_scrape": copy.deepcopy(case["content_scrape"]),
+        }
+        systems, fingerprinted = scrape_model.decorate(
+            case["merged_systems"], [{"provider": case["provider"], "pak": pak}])
+        digest = canonical.canonical_sha256({"systems": systems})
+        if systems != case["expected_systems"]:
+            fail(f"scrape/generation/{case['name']}: decorated systems differ")
+        elif fingerprinted != case["expected_fingerprinted_providers"]:
+            fail(f"scrape/generation/{case['name']}: fingerprinted providers "
+                 f"{fingerprinted} != {case['expected_fingerprinted_providers']}")
+        elif digest != case["expected_systems_sha256"]:
+            fail(f"scrape/generation/{case['name']}: systems hash {digest} != "
+                 f"{case['expected_systems_sha256']}")
+        else:
+            ok(f"scrape/generation/{case['name']}")
+        generation_hashes.add(digest)
+
+    if len(generation_hashes) != len(document["generation_cases"]):
+        fail("scrape/generation: distinct policy/output cases share a systems hash")
+
+    print(f"CONTENT-SCRAPE-1: {len(document['cases'])} validation cases, "
+          f"{len(document['generation_cases'])} generation cases, "
+          f"{len(seen_reasons)} distinct rejection reasons")
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +438,7 @@ def run_schema_selfchecks() -> None:
                 walk(item, f"{path}[{i}]", out)
 
     for name in ("content-paks-v1.schema.json",
+                 "content-scrape-v1.schema.json",
                  "effective-catalog-v1.schema.json",
                  "storefront-content-v1.schema.json"):
         unsupported: set[str] = set()
@@ -381,6 +456,7 @@ def run_schema_selfchecks() -> None:
 def main() -> None:
     run_schema_selfchecks()
     run_manifest_fixtures()
+    run_scrape_fixtures()
     run_merge_fixtures()
     run_generation_fixtures()
     run_storefront_fixtures()
