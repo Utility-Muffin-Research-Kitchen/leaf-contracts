@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import os
 
-from content_model import SYSTEM_ID_RE, check_path, is_int
+from content_model import SYSTEM_ID_RE, check_path
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -19,7 +19,7 @@ def validate(pak: dict, pak_dir: str, *, max_schema: int = 2) -> set[str]:
     errors: set[str] = set()
     if set(block) - {"schema", "systems"}:
         errors.add("unknown-content-art-field")
-    if not is_int(block.get("schema")) or block["schema"] not in range(1, max_schema + 1):
+    if type(block.get("schema")) not in (int, float) or block["schema"] not in range(1, max_schema + 1):
         return errors | {"unknown-content-art-schema"}
     rows = block.get("systems")
     if not isinstance(rows, list) or not 1 <= len(rows) <= 32:

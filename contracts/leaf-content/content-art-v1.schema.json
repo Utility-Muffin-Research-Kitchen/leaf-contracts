@@ -16,7 +16,7 @@
       "properties": {
         "schema": {
           "const": 1,
-          "type": "integer"
+          "type": "number"
         },
         "systems": {
           "type": "array",

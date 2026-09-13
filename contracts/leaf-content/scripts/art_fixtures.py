@@ -70,11 +70,16 @@ def run(root, fail, version=1):
                   case['name'] + ': optional art changed CONTENT-1 acceptance')
 
         # Boundary/type variants share a reason; keep one named invalid fixture per rule.
-        for value in (True, 1.0, '1', None):
+        for value in (True, 1.5, '1', None):
             pak = copy.deepcopy(document['paks']['owner'])
             pak['content_art']['schema'] = value
             check(art_model.validate(pak, str(pak_dir), max_schema=version) == {'unknown-content-art-schema'}
                   and not minischema.is_valid(pak, schema)[0], f'schema type {value!r}')
+        # JSON number spellings with the same value are the same schema version.
+        pak = copy.deepcopy(document['paks']['owner'])
+        pak['content_art']['schema'] = float(version)
+        check(not art_model.validate(pak, str(pak_dir), max_schema=version)
+              and minischema.is_valid(pak, schema)[0], 'numeric schema spelling')
         for value in ('a\0.png', '', 'a' * 4097, False):
             pak = copy.deepcopy(document['paks']['owner'])
             pak['content_art']['schema'] = version

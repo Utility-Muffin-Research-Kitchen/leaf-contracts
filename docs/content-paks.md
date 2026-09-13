@@ -444,7 +444,7 @@ minimum Leaf version solely for this cosmetic metadata.
 | Field | Rule | Reason |
 | --- | --- | --- |
 | block | Object, when present. `null` is invalid. | `malformed-content-art` |
-| `schema` | Required, exactly integer `1`. | `unknown-content-art-schema` |
+| `schema` | Required JSON number equal to `1`; `1.0` and `1e0` are equivalent. Booleans and strings are invalid. | `unknown-content-art-schema` |
 | `systems` | Required array of 1-32 entries. | `malformed-content-art-systems` |
 | entry | Object. | `malformed-content-art-system` |
 | `systems[].id` | Required CONTENT-1 system ID, unique within the block. | `malformed-content-art-system-id`, `duplicate-content-art-system` |
@@ -455,11 +455,16 @@ minimum Leaf version solely for this cosmetic metadata.
 | wordmark read | File must be readable during compilation. | `unreadable-content-art-image` |
 
 Validate this companion independently from CONTENT-1. Missing metadata is valid
-and inert. Record all companion violations in catalog diagnostics and ignore
-an invalid block as a unit. Never drop a system, core, or working app because
+and inert. Record at least one companion violation in catalog diagnostics and
+ignore an invalid block as a unit. You may report additional violations. Never drop a system, core, or working app because
 optional artwork is invalid. The PNG signature check identifies the format;
 the runtime image loader remains responsible for full decoding. An undecodable
 or unsupported PNG falls through to the next artwork candidate.
+
+If your JSON parser cannot preserve embedded NUL characters, reject the entire
+companion with `malformed-content-art` before a string can be silently truncated.
+Parsers that preserve NUL may report the specific field violation. In both cases,
+keep an otherwise valid CONTENT-1 contribution.
 
 ### Eligibility after merge
 
@@ -529,7 +534,8 @@ at the same path. No standalone art-pack format is defined here.
 You can provide a separate full-color icon for the system-selection Grid while
 retaining your wordmark for game details. Use `content_art.schema: 2` with
 `content-art-v2.schema.json`. CONTENT-1 and CAT-1 stay unchanged, and readers
-continue to accept CONTENT-ART-1.
+continue to accept CONTENT-ART-1. Schema values use numeric equality here too:
+`2`, `2.0` and `2e0` identify version 2. Booleans and strings are invalid.
 
 ```json
 "content_art": {
