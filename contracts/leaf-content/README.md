@@ -1,7 +1,7 @@
 # `contracts/leaf-content/`
 
 Canonical schemas and fixtures for `CONTENT-1`, optional `CONTENT-SCRAPE-1`,
-`CONTENT-ART-1`, `CAT-1`, and `STORE-CONTENT-1` — the interfaces that let a `.pak` add a system,
+`CONTENT-ART-1`, `CONTENT-ART-2`, `CAT-1`, and `STORE-CONTENT-1` — the interfaces that let a `.pak` add a system,
 the emulator that runs it, and optional scraping identity. The normative text is
 [`../../docs/content-paks.md`](../../docs/content-paks.md).
 
@@ -15,6 +15,7 @@ leaf-content/
 ├── content-paks-v1.schema.json        CONTENT-1  the `provides` block shape
 ├── content-scrape-v1.schema.json      CONTENT-SCRAPE-1 optional scrape policy
 ├── content-art-v1.schema.json         CONTENT-ART-1 optional system wordmarks
+├── content-art-v2.schema.json         CONTENT-ART-2 optional wordmarks and grid icons
 ├── effective-catalog-v1.schema.json   CAT-1      the generation stamp shape
 ├── storefront-content-v1.schema.json  STORE-CONTENT-1  the `content[]` lane
 ├── manifests/{valid,invalid}/         one invalid fixture per rejection rule

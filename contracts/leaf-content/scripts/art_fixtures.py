@@ -18,10 +18,10 @@ PNG = base64.b64decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=')
 
 
-def run(root, fail):
+def run(root, fail, version=1):
     root = Path(root)
-    document = json.loads((root / 'art/fixtures.json').read_text())
-    schema = json.loads((root / 'content-art-v1.schema.json').read_text())
+    document = json.loads((root / ('art/fixtures.json' if version == 1 else 'art/grid-fixtures.json')).read_text())
+    schema = json.loads((root / f'content-art-v{version}.schema.json').read_text())
     old_schema = json.loads((root / 'content-paks-v1.schema.json').read_text())
     stamp_schema = json.loads((root / 'effective-catalog-v1.schema.json').read_text())
 
@@ -34,6 +34,10 @@ def run(root, fail):
         (pak_dir / 'art').mkdir(parents=True)
         (pak_dir / 'art/mark.png').write_bytes(PNG)
         (pak_dir / 'art/bad.png').write_text('not a PNG')
+        (pak_dir / 'art/grid.png').write_bytes(PNG)
+        for name, width in [('large', 1025), ('zero', 0)]:
+            (pak_dir / f'art/{name}.png').write_bytes(PNG[:16] + width.to_bytes(4, 'big') + PNG[20:])
+        (pak_dir / 'art/header.png').write_bytes(art_model.PNG_SIGNATURE)
         (pak_dir / 'escape').symlink_to(Path(directory), target_is_directory=True)
         (pak_dir / 'run.sh').write_text('#!/bin/sh\nexit 0\n')
         (pak_dir / 'run.sh').chmod(0o755)
@@ -44,20 +48,22 @@ def run(root, fail):
             if 'content_art' in case:
                 pak['content_art'] = case['content_art']
             expected = set() if case.get('valid') else {case['reason']}
-            if expected:
+            if expected and version == 1:
                 check(case['reason'] not in reasons, 'duplicate reason ' + case['reason'])
                 reasons.update(expected)
             if case.get('setup') == 'unreadable':
                 with patch('builtins.open', side_effect=PermissionError):
-                    actual = art_model.validate(pak, str(pak_dir))
+                    actual = art_model.validate(pak, str(pak_dir), max_schema=version)
             else:
-                actual = art_model.validate(pak, str(pak_dir))
+                actual = art_model.validate(pak, str(pak_dir), max_schema=version)
             check(actual == expected, f"{case['name']}: {actual} != {expected}")
             shape_ok = minischema.is_valid(pak, schema)[0]
+            if version == 2:
+                check(not minischema.is_valid(pak, json.loads((root / 'content-art-v1.schema.json').read_text()))[0], case['name'] + ': old art schema accepted v2')
             filesystem_only = case.get('reason', '').startswith('content-art-') or \
                 case.get('reason') in {'duplicate-content-art-system',
                                       'unsupported-content-art-image',
-                                      'unreadable-content-art-image'}
+                                      'unreadable-content-art-image', 'invalid-content-art-grid-dimensions'}
             check(shape_ok == (not expected or filesystem_only), case['name'] + ': schema')
             check(minischema.is_valid(pak, old_schema)[0] and
                   not content_model.validate_manifest(pak, str(pak_dir)),
@@ -67,12 +73,13 @@ def run(root, fail):
         for value in (True, 1.0, '1', None):
             pak = copy.deepcopy(document['paks']['owner'])
             pak['content_art']['schema'] = value
-            check(art_model.validate(pak, str(pak_dir)) == {'unknown-content-art-schema'}
+            check(art_model.validate(pak, str(pak_dir), max_schema=version) == {'unknown-content-art-schema'}
                   and not minischema.is_valid(pak, schema)[0], f'schema type {value!r}')
         for value in ('a\0.png', '', 'a' * 4097, False):
             pak = copy.deepcopy(document['paks']['owner'])
+            pak['content_art']['schema'] = version
             pak['content_art']['systems'][0]['wordmark'] = value
-            check(art_model.validate(pak, str(pak_dir)) == {'malformed-content-art-wordmark'}
+            check(art_model.validate(pak, str(pak_dir), max_schema=version) == {'malformed-content-art-wordmark'}
                   and not minischema.is_valid(pak, schema)[0], 'wordmark string bounds')
 
         for case in document['generation_cases']:
@@ -90,11 +97,14 @@ def run(root, fail):
             expected = copy.deepcopy(merged)
             expected_files = {}
             for system in expected['systems']:
-                name = case['applied'].get(system['id'])
-                if name:
-                    provider = f'mlp1/{name}.pak'
-                    system.update(wordmark='art/mark.png', wordmark_provider=provider)
-                    expected_files[provider] = ['art/mark.png', 'pak.json']
+                for slot, field, rel in [('wordmark', 'applied', 'art/mark.png'), ('grid_icon', 'grid_applied', 'art/grid.png')]:
+                    name = case.get(field, {}).get(system['id'])
+                    if name:
+                        provider = f'mlp1/{name}.pak'
+                        system[slot] = rel
+                        system[slot + '_provider'] = provider
+                        expected_files.setdefault(provider, set()).update([rel, 'pak.json'])
+            expected_files = {p: sorted(files) for p, files in expected_files.items()}
             expected_diags = sorted([
                 dict(provider=f'mlp1/{p}.pak', reason=r, detail=d)
                 for p, r, d in case['diagnostics']],
@@ -148,5 +158,5 @@ def run(root, fail):
             check(art_model.decorate(merged, moved) == (output, files, diagnostics),
                   'root relocation')
 
-    print(f"CONTENT-ART-1: {len(document['cases'])} validation cases, "
+    print(f"CONTENT-ART-{version}: {len(document['cases'])} validation cases, "
           f"{len(document['generation_cases'])} merge cases, compatibility and freshness checks")

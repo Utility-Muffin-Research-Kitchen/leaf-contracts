@@ -441,6 +441,7 @@ def run_schema_selfchecks() -> None:
     for name in ("content-paks-v1.schema.json",
                  "content-scrape-v1.schema.json",
                  "content-art-v1.schema.json",
+                 "content-art-v2.schema.json",
                  "effective-catalog-v1.schema.json",
                  "storefront-content-v1.schema.json"):
         unsupported: set[str] = set()
@@ -460,6 +461,7 @@ def main() -> None:
     run_manifest_fixtures()
     run_scrape_fixtures()
     art_fixtures.run(ROOT, fail)
+    art_fixtures.run(ROOT, fail, version=2)
     run_merge_fixtures()
     run_generation_fixtures()
     run_storefront_fixtures()

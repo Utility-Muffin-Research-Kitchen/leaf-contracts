@@ -10,6 +10,7 @@ contribute a system and the emulator that runs it:
 | **CONTENT-1** | the `provides` block a content pak declares in its `pak.json` |
 | **CONTENT-SCRAPE-1** | optional, backward-compatible scraping identity metadata beside `provides` |
 | **CONTENT-ART-1** | optional system wordmarks beside `provides` |
+| **CONTENT-ART-2** | optional wordmarks and Grid icons beside `provides` |
 | **CAT-1** | the effective catalog: generation directories, the selector, and the stamp |
 | **STORE-CONTENT-1** | the storefront `content[]` lane |
 
@@ -522,6 +523,73 @@ failed decode advances to the next candidate; an asynchronous pending load is
 not a permanent failure. Catalog generation and provider asset changes must
 invalidate path memos, textures, and derived thumbnails, including replacement
 at the same path. No standalone art-pack format is defined here.
+
+## CONTENT-ART-2 - wordmarks and grid icons
+
+You can provide a separate full-color icon for the system-selection Grid while
+retaining your wordmark for game details. Use `content_art.schema: 2` with
+`content-art-v2.schema.json`. CONTENT-1 and CAT-1 stay unchanged, and readers
+continue to accept CONTENT-ART-1.
+
+```json
+"content_art": {
+  "schema": 2,
+  "systems": [{
+    "id": "SCUMMVM",
+    "wordmark": "art/SCUMMVM-wordmark.png",
+    "grid_icon": "art/SCUMMVM-grid.png"
+  }]
+}
+```
+
+Each system entry requires `id` and at least one of `wordmark` or `grid_icon`.
+Either image can be omitted; a present image must be a nonempty string. The
+block accepts only `schema` and `systems`, and rows accept only those three
+fields. The v1 ID, uniqueness, count, string length, path containment, regular
+file, readability and PNG rules apply to both image slots. An empty row reports
+`missing-content-art-image`; an invalid grid path string reports
+`malformed-content-art-grid-icon`. Other malformed fields retain the v1 reasons.
+
+Author grid icons as 512x512 RGBA PNGs. Compilation requires the PNG signature,
+an initial 13-byte IHDR chunk and nonzero width/height no greater than 1024.
+Malformed/truncated headers report `unsupported-content-art-image`; dimensions
+outside 1-1024 report `invalid-content-art-grid-dimensions`. Full decoding happens
+in the launcher: a corrupt or unsupported image falls through without blocking
+play. Keep proportions and colors; this slot is not tinted as a wordmark.
+
+The optional block fails soft as a unit, including when only one referenced
+image is invalid. Its CONTENT-1 contribution remains usable. An older v1-only
+reader ignores the entire schema-2 companion, including its wordmark, and uses
+its ordinary artwork fallback. Do not raise a minimum Leaf version for these
+cosmetic fields. Ship the new reader before migrating a pak's companion.
+
+Post-merge eligibility is the same as v1: your pak must own the surviving system,
+or extend a release-owned system with its own surviving alternate core. Resolve
+claims independently for each `(system ID, image slot)`, including claims from
+mixed v1 and v2 paks. Ignore every competing claim for that slot. A grid conflict
+must not discard a unique wordmark, or vice versa. Retain
+`conflicting-content-art-system`; its detail is the system ID for wordmarks and
+`<ID>:grid_icon` for grid icons. Ineligible entries retain the v1 diagnostic.
+
+Decorated system rows may contain `grid_icon` and `grid_icon_provider` alongside
+`wordmark` and `wordmark_provider`. Each pair has its own provider identity;
+neither changes system ownership. Serialize pak-relative image paths and resolve
+against the provider's live install root, rechecking containment and a regular
+file. A malformed optional pair is ignored without discarding the row or another
+valid pair. Fingerprint every applied image and its manifest in CAT-1's existing
+contributor file list and cover the decorated output with the systems digest.
+No runtime manifest polling is needed.
+
+Grid lookup order is selected user-theme `grid/icons/<ID>.png`, the existing
+ROM-folder `icon.png` override, accepted pak grid icon, then the existing generic
+pak/bundled icon-pack candidates and placeholder. Preserve current theme/ROM
+priority and folder resolution. The grid icon applies in Grid only; Cover Flow,
+Apps icons and full-tile label overlays retain their existing behavior. Keep a
+higher-priority asynchronous load pending until it succeeds or fails. Failed
+decode advances to the next candidate. Catalog refresh, provider update/removal,
+and theme changes must invalidate affected path, failure and texture caches.
+Use catalog generation identity in derived thumbnails so same-path/same-mtime
+provider replacements cannot serve older bytes.
 
 ## CAT-1 — the effective catalog
 
