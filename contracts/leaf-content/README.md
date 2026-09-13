@@ -1,7 +1,7 @@
 # `contracts/leaf-content/`
 
 Canonical schemas and fixtures for `CONTENT-1`, optional `CONTENT-SCRAPE-1`,
-`CAT-1`, and `STORE-CONTENT-1` — the interfaces that let a `.pak` add a system,
+`CONTENT-ART-1`, `CAT-1`, and `STORE-CONTENT-1` — the interfaces that let a `.pak` add a system,
 the emulator that runs it, and optional scraping identity. The normative text is
 [`../../docs/content-paks.md`](../../docs/content-paks.md).
 
@@ -14,9 +14,11 @@ contract names.
 leaf-content/
 ├── content-paks-v1.schema.json        CONTENT-1  the `provides` block shape
 ├── content-scrape-v1.schema.json      CONTENT-SCRAPE-1 optional scrape policy
+├── content-art-v1.schema.json         CONTENT-ART-1 optional system wordmarks
 ├── effective-catalog-v1.schema.json   CAT-1      the generation stamp shape
 ├── storefront-content-v1.schema.json  STORE-CONTENT-1  the `content[]` lane
 ├── manifests/{valid,invalid}/         one invalid fixture per rejection rule
+├── art/fixtures.json                  companion shape, eligibility, conflicts
 ├── scrape/fixtures.json               companion shape + ownership rules
 ├── merge/fixtures.json                base + pak inputs → expected merged output
 ├── generations/fixtures.json          selector/stamp/publication lifecycle
@@ -32,7 +34,7 @@ to live.
 
 ## The reference models
 
-`scripts/` holds more than generators. Three modules are executable
+`scripts/` holds more than generators. The modules are executable
 statements of the contract, and Jawaka's C implementation has to agree with
 them reason for reason:
 
@@ -40,6 +42,7 @@ them reason for reason:
 | --- | --- |
 | `content_model.py` | `provides` validation and the merge policy |
 | `scrape_model.py` | optional scrape-policy validation and catalog decoration |
+| `art_model.py` | optional wordmark validation and post-merge decoration |
 | `catalog_model.py` | selector resolution, the two validation levels, publication, cleanup |
 | `storefront_model.py` | the `content[]` lane rules and the Open-button rule |
 | `canonical.py` | canonical bytes, the tree hash, the generation digest |
@@ -105,7 +108,8 @@ python3 validate_fixtures.py         # check everything (-v for per-fixture line
 Stdlib-only Python. `minischema.py` is imported from
 `../leaf-services/scripts/` rather than copied.
 
-`storefront/fixtures.json` is hand-authored and edited directly; the other
+`art/fixtures.json`, `scrape/fixtures.json`, and `storefront/fixtures.json`
+are hand-authored and edited directly; the other
 three fixture sets are generator output, so edit the generator and let it
 overwrite rather than hand-editing what it produced.
 

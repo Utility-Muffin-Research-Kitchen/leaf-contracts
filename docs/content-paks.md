@@ -9,6 +9,7 @@ contribute a system and the emulator that runs it:
 | --- | --- |
 | **CONTENT-1** | the `provides` block a content pak declares in its `pak.json` |
 | **CONTENT-SCRAPE-1** | optional, backward-compatible scraping identity metadata beside `provides` |
+| **CONTENT-ART-1** | optional system wordmarks beside `provides` |
 | **CAT-1** | the effective catalog: generation directories, the selector, and the stamp |
 | **STORE-CONTENT-1** | the storefront `content[]` lane |
 
@@ -416,6 +417,112 @@ rewritten.
 
 ---
 
+## CONTENT-ART-1 - optional system wordmarks
+
+Your content pak can supply a system wordmark without changing its CONTENT-1
+contribution. Add this optional top-level sibling of `provides` to an otherwise
+valid manifest:
+
+```json
+{
+  "content_art": {
+    "schema": 1,
+    "systems": [
+      { "id": "SCUMMVM", "wordmark": "art/SCUMMVM-wordmark.png" }
+    ]
+  }
+}
+```
+
+CONTENT-1 stays unchanged. Older consumers ignore this sibling and retain
+bundled artwork or a system-name fallback. You don't need to raise your pak's
+minimum Leaf version solely for this cosmetic metadata.
+
+### Shape and diagnostics
+
+| Field | Rule | Reason |
+| --- | --- | --- |
+| block | Object, when present. `null` is invalid. | `malformed-content-art` |
+| `schema` | Required, exactly integer `1`. | `unknown-content-art-schema` |
+| `systems` | Required array of 1-32 entries. | `malformed-content-art-systems` |
+| entry | Object. | `malformed-content-art-system` |
+| `systems[].id` | Required CONTENT-1 system ID, unique within the block. | `malformed-content-art-system-id`, `duplicate-content-art-system` |
+| `systems[].wordmark` | Required non-empty string, at most 4096 characters, no NUL. | `malformed-content-art-wordmark` |
+| all objects | Only `schema` and `systems` in the block; only `id` and `wordmark` in each entry. | `unknown-content-art-field` |
+| wordmark path | Pak-relative, existing regular file; apply CONTENT-1 path checks. | `content-art-absolute-path`, `content-art-path-traversal`, `content-art-escaping-symlink`, `content-art-missing-file`, `content-art-non-regular-file` |
+| wordmark format | `.png` suffix (case-insensitive) and PNG signature. | `unsupported-content-art-image` |
+| wordmark read | File must be readable during compilation. | `unreadable-content-art-image` |
+
+Validate this companion independently from CONTENT-1. Missing metadata is valid
+and inert. Record all companion violations in catalog diagnostics and ignore
+an invalid block as a unit. Never drop a system, core, or working app because
+optional artwork is invalid. The PNG signature check identifies the format;
+the runtime image loader remains responsible for full decoding. An undecodable
+or unsupported PNG falls through to the next artwork candidate.
+
+### Eligibility after merge
+
+Run the ordinary CONTENT-1 merge unchanged, then consider valid companions from
+accepted contributors. An entry is eligible only when its system survives and:
+
+- The system's generated `provider` equals this pak's install identity; or
+- The system is release-owned (no `provider`), and this pak declares a
+  `system_extensions` entry for it naming at least one surviving alternate core
+  contributed by this same pak. That core must appear in the merged system's
+  `alternate_cores`.
+
+A base core, another pak's core, or a refused contributed core cannot authorize
+artwork. You cannot decorate another pak's system, even when your extension
+adds a working alternate core. A missing or ineligible target produces
+`ineligible-content-art-system`. Discard that entry only, retaining unrelated
+eligible entries from the same valid block.
+
+If two or more eligible extension paks claim the same release-owned ID, discard
+all claims for that ID and report `conflicting-content-art-system` for each
+claimant. Resolve conflicts after eligibility, independently of filesystem
+order. Ownership, names, discovery, defaults, and icon fields never change.
+
+### Catalog fields and freshness
+
+Decorate each eligible, uncontested system row with both:
+
+```json
+"wordmark": "art/SCUMMVM-wordmark.png",
+"wordmark_provider": "mlp1/ScummVM.pak"
+```
+
+`wordmark_provider` is the existing provider install identity, never a mount
+point. It is separate from system `provider`: native PICO-8 artwork can come
+from a pak while PICO8 remains release-owned. Resolve the relative `wordmark`
+against that provider's live install root using CAT-1 contributor `source_id`
+and existing storage-source resolution. CONTENT-1 currently accepts only the
+primary storage source. Missing or malformed optional fields disable that
+candidate, not the system row. Readers without CONTENT-ART-1 support ignore
+both new fields.
+
+For each applied entry, add its relative PNG path and `pak.json` to that
+provider's existing CAT-1 `files[]` list, deduplicated and sorted by `rel`, with
+the existing SHA-256 file hashes. Entries that don't affect output add no art
+fingerprints. `provides_sha256` continues to cover `provides` alone. The
+existing `output.systems_sha256` covers decorated rows. Changing only PNG bytes
+at the same path must change the contributor fingerprint and generation digest,
+even when the serialized system row is identical. Provider removal, missing
+files, and root relocation use the existing provenance and selector rules.
+No stamp field, stamp schema, or runtime manifest read is added.
+
+### Display fallback
+
+Look up a wordmark in this order: ROM-folder `wordmark.png`, selected user-theme
+`grid/wordmarks/<ID>.png`, accepted catalog wordmark, bundled
+`res/grid_wordmarks/<ID>.png`, then the system display name. Preserve existing
+ROM-folder/source resolution and theme identity handling.
+
+Use the existing image loader with its 512px decode cap. A missing file or
+failed decode advances to the next candidate; an asynchronous pending load is
+not a permanent failure. Catalog generation and provider asset changes must
+invalidate path memos, textures, and derived thumbnails, including replacement
+at the same path. No standalone art-pack format is defined here.
+
 ## CAT-1 — the effective catalog
 
 ### Layout
@@ -688,7 +795,8 @@ explicit rule:
 
 `content-paks-v1`, `effective-catalog-v1`, and `storefront-content-v1` are
 frozen once the first content pak publishes. `content-scrape-v1` freezes when
-the first pak using it publishes. Until the applicable freeze:
+the first pak using it publishes. `content-art-v1` freezes when the first pak
+using it publishes. Until the applicable freeze:
 
 1. Change this file first. It is the normative text.
 2. Update the schema and the fixture tree in

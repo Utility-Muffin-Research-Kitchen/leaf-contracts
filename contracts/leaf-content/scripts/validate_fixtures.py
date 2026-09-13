@@ -25,6 +25,7 @@ sys.path.insert(0, HERE)
 # copy of a JSON-Schema subset is a second thing to keep in step.
 sys.path.insert(0, os.path.join(WORKSPACE, "contracts", "leaf-services", "scripts"))
 
+import art_fixtures  # noqa: E402
 import canonical  # noqa: E402
 import catalog_model  # noqa: E402
 import content_model  # noqa: E402
@@ -439,6 +440,7 @@ def run_schema_selfchecks() -> None:
 
     for name in ("content-paks-v1.schema.json",
                  "content-scrape-v1.schema.json",
+                 "content-art-v1.schema.json",
                  "effective-catalog-v1.schema.json",
                  "storefront-content-v1.schema.json"):
         unsupported: set[str] = set()
@@ -457,6 +459,7 @@ def main() -> None:
     run_schema_selfchecks()
     run_manifest_fixtures()
     run_scrape_fixtures()
+    art_fixtures.run(ROOT, fail)
     run_merge_fixtures()
     run_generation_fixtures()
     run_storefront_fixtures()
