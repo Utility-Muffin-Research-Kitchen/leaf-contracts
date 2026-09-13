@@ -469,6 +469,36 @@
           }
         ]
       }
+    },
+    "legacy": {
+      "provides": {
+        "schema": 1,
+        "system_extensions": [
+          {
+            "system_id": "PICO8",
+            "add_alternate_cores": [
+              "pico8_other"
+            ]
+          }
+        ],
+        "cores": [
+          {
+            "id": "pico8_other",
+            "display_name": "pico8_other",
+            "type": "path",
+            "path": "run.sh"
+          }
+        ]
+      },
+      "content_art": {
+        "schema": 1,
+        "systems": [
+          {
+            "id": "PICO8",
+            "wordmark": "art/mark.png"
+          }
+        ]
+      }
     }
   },
   "cases": [
@@ -862,6 +892,43 @@
       "applied": {},
       "diagnostics": [],
       "grid_applied": {}
+    },
+    {
+      "name": "mixed-versions-independent",
+      "contributors": [
+        "native_grid",
+        "legacy"
+      ],
+      "applied": {
+        "PICO8": "legacy"
+      },
+      "grid_applied": {
+        "PICO8": "native_grid"
+      },
+      "diagnostics": []
+    },
+    {
+      "name": "mixed-versions-wordmark-conflict",
+      "contributors": [
+        "native",
+        "legacy"
+      ],
+      "applied": {},
+      "grid_applied": {
+        "PICO8": "native"
+      },
+      "diagnostics": [
+        [
+          "native",
+          "conflicting-content-art-system",
+          "PICO8"
+        ],
+        [
+          "legacy",
+          "conflicting-content-art-system",
+          "PICO8"
+        ]
+      ]
     }
   ]
 }
