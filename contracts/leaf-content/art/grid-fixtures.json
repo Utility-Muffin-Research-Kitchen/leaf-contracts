@@ -431,6 +431,67 @@
         ]
       }
     },
+    "native_color": {
+      "provides": {
+        "schema": 1,
+        "system_extensions": [
+          {
+            "system_id": "PICO8",
+            "add_alternate_cores": [
+              "pico8_native"
+            ]
+          }
+        ],
+        "cores": [
+          {
+            "id": "pico8_native",
+            "display_name": "pico8_native",
+            "type": "path",
+            "path": "run.sh"
+          }
+        ]
+      },
+      "content_art": {
+        "schema": 2,
+        "systems": [
+          {
+            "id": "PICO8",
+            "wordmark_color": "art/color.png"
+          }
+        ]
+      }
+    },
+    "other_color": {
+      "provides": {
+        "schema": 1,
+        "system_extensions": [
+          {
+            "system_id": "PICO8",
+            "add_alternate_cores": [
+              "pico8_other"
+            ]
+          }
+        ],
+        "cores": [
+          {
+            "id": "pico8_other",
+            "display_name": "pico8_other",
+            "type": "path",
+            "path": "run.sh"
+          }
+        ]
+      },
+      "content_art": {
+        "schema": 2,
+        "systems": [
+          {
+            "id": "PICO8",
+            "wordmark": "art/mark.png",
+            "wordmark_color": "art/color.png"
+          }
+        ]
+      }
+    },
     "invalid_block": {
       "provides": {
         "schema": 1,
@@ -543,6 +604,19 @@
       "valid": true
     },
     {
+      "name": "color-only",
+      "content_art": {
+        "schema": 2,
+        "systems": [
+          {
+            "id": "SCUMMVM",
+            "wordmark_color": "art/color.png"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
       "name": "empty-slot",
       "content_art": {
         "schema": 2,
@@ -605,6 +679,32 @@
         ]
       },
       "reason": "unsupported-content-art-image"
+    },
+    {
+      "name": "wordmark-color-type",
+      "content_art": {
+        "schema": 2,
+        "systems": [
+          {
+            "id": "SCUMMVM",
+            "wordmark_color": false
+          }
+        ]
+      },
+      "reason": "malformed-content-art-wordmark-color"
+    },
+    {
+      "name": "wordmark-color-too-large",
+      "content_art": {
+        "schema": 2,
+        "systems": [
+          {
+            "id": "SCUMMVM",
+            "wordmark_color": "art/large.png"
+          }
+        ]
+      },
+      "reason": "invalid-content-art-wordmark-dimensions"
     },
     {
       "name": "unknown-schema",
@@ -758,6 +858,45 @@
           "other",
           "conflicting-content-art-system",
           "PICO8:grid_icon"
+        ]
+      ]
+    },
+    {
+      "name": "color-independent-provider",
+      "contributors": [
+        "native_color",
+        "other_wordmark"
+      ],
+      "applied": {
+        "PICO8": "other_wordmark"
+      },
+      "color_applied": {
+        "PICO8": "native_color"
+      },
+      "grid_applied": {},
+      "diagnostics": []
+    },
+    {
+      "name": "color-conflict-keeps-wordmark",
+      "contributors": [
+        "native_color",
+        "other_color"
+      ],
+      "applied": {
+        "PICO8": "other_color"
+      },
+      "color_applied": {},
+      "grid_applied": {},
+      "diagnostics": [
+        [
+          "native_color",
+          "conflicting-content-art-system",
+          "PICO8:wordmark_color"
+        ],
+        [
+          "other_color",
+          "conflicting-content-art-system",
+          "PICO8:wordmark_color"
         ]
       ]
     },

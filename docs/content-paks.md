@@ -525,10 +525,21 @@ No stamp field, stamp schema, or runtime manifest read is added.
 
 ### Display fallback
 
-Look up a wordmark in this order: ROM-folder `wordmark.png`, selected user-theme
-`grid/wordmarks/<ID>.png`, accepted catalog wordmark, bundled
-`res/grid_wordmarks/<ID>.png`, then the system display name. Preserve existing
-ROM-folder/source resolution and theme identity handling.
+Look up the game-details wordmark in this order. A `.color.png` file and the
+catalog `wordmark_color` field are full-color wordmarks drawn without tint; every
+other image candidate is tinted as described above.
+
+1. ROM-folder `wordmark.color.png` (untinted)
+2. ROM-folder `wordmark.png` (tinted)
+3. Selected user-theme `grid/wordmarks/<ID>.color.png` (untinted)
+4. Selected user-theme `grid/wordmarks/<ID>.png` (tinted)
+5. Accepted catalog `wordmark_color` (untinted, CONTENT-ART-2 only)
+6. Accepted catalog `wordmark` (tinted)
+7. Bundled `res/grid_wordmarks/<ID>.color.png` (untinted)
+8. Bundled `res/grid_wordmarks/<ID>.png` (tinted)
+9. The system display name as text
+
+Preserve existing ROM-folder/source resolution and theme identity handling.
 
 The launcher fully decodes a wordmark and then downscales it to at most 512 px
 on each edge, so the 512 px figure does not limit decode memory. The 1-1024
@@ -543,7 +554,8 @@ at the same path. No standalone art-pack format is defined here.
 ## CONTENT-ART-2 - wordmarks and grid icons
 
 You can provide a separate full-color icon for the system-selection Grid while
-retaining your wordmark for game details. Use `content_art.schema: 2` with
+retaining your wordmark for game details, and a full-color wordmark that is drawn
+without the theme tint. Use `content_art.schema: 2` with
 `content-art-v2.schema.json`. CONTENT-1 and CAT-1 stay unchanged, and readers
 continue to accept CONTENT-ART-1. Schema values use numeric equality here too:
 `2`, `2.0` and `2e0` identify version 2. Booleans and strings are invalid.
@@ -554,28 +566,39 @@ continue to accept CONTENT-ART-1. Schema values use numeric equality here too:
   "systems": [{
     "id": "SCUMMVM",
     "wordmark": "art/SCUMMVM-wordmark.png",
+    "wordmark_color": "art/SCUMMVM-wordmark-color.png",
     "grid_icon": "art/SCUMMVM-grid.png"
   }]
 }
 ```
 
-Each system entry requires `id` and at least one of `wordmark` or `grid_icon`.
-Either image can be omitted; a present image must be a nonempty string. The
-block accepts only `schema` and `systems`, and rows accept only those three
-fields. The v1 ID, uniqueness, count, string length, path containment, regular
-file, readability and PNG header rules apply to both image slots. A v2 wordmark
-keeps the v1 1-1024 dimension rule and `invalid-content-art-wordmark-dimensions`,
-and is tinted exactly like a v1 wordmark: author it as white (#FFFFFF) shapes on
-a transparent background. An empty row reports
-`missing-content-art-image`; an invalid grid path string reports
-`malformed-content-art-grid-icon`. Other malformed fields retain the v1 reasons.
+Each system entry requires `id` and at least one of `wordmark`,
+`wordmark_color` or `grid_icon`. Any image can be omitted; a present image must
+be a nonempty string. The block accepts only `schema` and `systems`, and rows
+accept only those four fields. The v1 ID, uniqueness, count, string length, path
+containment, regular file, readability and PNG header rules apply to every image
+slot. An empty row reports `missing-content-art-image`; an invalid grid path
+string reports `malformed-content-art-grid-icon`; an invalid color wordmark path
+string reports `malformed-content-art-wordmark-color`. Other malformed fields
+retain the v1 reasons.
 
-Author grid icons as 512x512 RGBA PNGs. Compilation requires the PNG signature,
-an initial 13-byte IHDR chunk and nonzero width/height no greater than 1024.
-Malformed/truncated headers report `unsupported-content-art-image`; dimensions
-outside 1-1024 report `invalid-content-art-grid-dimensions`. Full decoding happens
-in the launcher: a corrupt or unsupported image falls through without blocking
-play. Keep proportions and colors; this slot is not tinted as a wordmark.
+| Slot | Meaning | Authoring | Dimensions |
+| --- | --- | --- | --- |
+| `wordmark` | Game-details wordmark, tinted with the theme's text color. | White (#FFFFFF) shapes on a transparent background. | 1-1024 per edge, else `invalid-content-art-wordmark-dimensions` |
+| `wordmark_color` | Game-details wordmark drawn without tint. | RGBA with its own colors. | 1-1024 per edge, else `invalid-content-art-wordmark-dimensions` |
+| `grid_icon` | Full-color Grid system icon, not tinted. | 512x512 RGBA. | 1-1024 per edge, else `invalid-content-art-grid-dimensions` |
+
+A row may carry both wordmarks. In the [display fallback](#display-fallback)
+order the catalog `wordmark_color` is tried before the catalog `wordmark`, so the
+tinted image is used only when the color one is absent, over the dimension
+limit, or fails to decode.
+
+For every image slot, compilation requires the PNG signature, an initial 13-byte
+IHDR chunk and nonzero width/height no greater than 1024. Malformed/truncated
+headers report `unsupported-content-art-image`; dimensions outside 1-1024 report
+the slot's dimensions reason from the table. Full decoding happens in the
+launcher: a corrupt or unsupported image falls through without blocking play.
+Keep grid icon proportions and colors; that slot is not tinted as a wordmark.
 
 The optional block fails soft as a unit, including when only one referenced
 image is invalid. Its CONTENT-1 contribution remains usable. An older v1-only
@@ -586,14 +609,18 @@ cosmetic fields. Ship the new reader before migrating a pak's companion.
 Post-merge eligibility is the same as v1: your pak must own the surviving system,
 or extend a release-owned system with its own surviving alternate core. Resolve
 claims independently for each `(system ID, image slot)`, including claims from
-mixed v1 and v2 paks. Ignore every competing claim for that slot. A grid conflict
-must not discard a unique wordmark, or vice versa. Retain
-`conflicting-content-art-system`; its detail is the system ID for wordmarks and
-`<ID>:grid_icon` for grid icons. Ineligible entries retain the v1 diagnostic.
+mixed v1 and v2 paks. `wordmark`, `wordmark_color` and `grid_icon` are three
+separate slots. Ignore every competing claim for that slot. A conflict in one
+slot must not discard a unique claim in another: a grid conflict keeps a unique
+wordmark, and a `wordmark_color` conflict keeps a unique tinted `wordmark`. Retain
+`conflicting-content-art-system`; its detail is the system ID for `wordmark`,
+`<ID>:wordmark_color` for color wordmarks, and `<ID>:grid_icon` for grid icons.
+Ineligible entries retain the v1 diagnostic.
 
-Decorated system rows may contain `grid_icon` and `grid_icon_provider` alongside
-`wordmark` and `wordmark_provider`. Each pair has its own provider identity;
-neither changes system ownership. Serialize pak-relative image paths and resolve
+Decorated system rows may contain `wordmark_color` and `wordmark_color_provider`,
+and `grid_icon` and `grid_icon_provider`, alongside `wordmark` and
+`wordmark_provider`. Each pair has its own provider identity; none changes
+system ownership. Serialize pak-relative image paths and resolve
 against the provider's live install root, rechecking containment and a regular
 file. A malformed optional pair is ignored without discarding the row or another
 valid pair. Fingerprint every applied image and its manifest in CAT-1's existing

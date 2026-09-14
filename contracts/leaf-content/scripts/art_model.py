@@ -7,6 +7,9 @@ import os
 from content_model import SYSTEM_ID_RE, check_path
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# Claim slots in decoration order. wordmark_color is an untinted wordmark and
+# resolves independently of the tinted one.
+SLOTS = ("wordmark", "wordmark_color", "grid_icon")
 
 
 def validate(pak: dict, pak_dir: str, *, max_schema: int = 2) -> set[str]:
@@ -24,7 +27,7 @@ def validate(pak: dict, pak_dir: str, *, max_schema: int = 2) -> set[str]:
     rows = block.get("systems")
     if not isinstance(rows, list) or not 1 <= len(rows) <= 32:
         return errors | {"malformed-content-art-systems"}
-    slots = ("wordmark", "grid_icon") if block.get("schema") == 2 else ("wordmark",)
+    slots = SLOTS if block.get("schema") == 2 else ("wordmark",)
     seen: set[str] = set()
     for row in rows:
         if not isinstance(row, dict):
@@ -102,7 +105,7 @@ def decorate(catalog: dict, contributors: list[dict]) \
                         for core_id in ext["add_alternate_cores"])
                     for ext in pak["provides"].get("system_extensions", []))
             if eligible:
-                for slot in ("wordmark", "grid_icon"):
+                for slot in SLOTS:
                     if slot in entry:
                         claims.setdefault((system_id, slot), []).append((provider, entry[slot]))
             else:
@@ -113,7 +116,7 @@ def decorate(catalog: dict, contributors: list[dict]) \
         if len(candidates) > 1:
             for provider, _ in candidates:
                 record(provider, "conflicting-content-art-system",
-                       system_id if slot == "wordmark" else system_id + ":grid_icon")
+                       system_id if slot == "wordmark" else f"{system_id}:{slot}")
             continue
         provider, rel = candidates[0]
         systems[system_id][slot] = rel

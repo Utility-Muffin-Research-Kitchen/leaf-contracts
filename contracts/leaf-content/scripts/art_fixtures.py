@@ -35,6 +35,7 @@ def run(root, fail, version=1):
         (pak_dir / 'art/mark.png').write_bytes(PNG)
         (pak_dir / 'art/bad.png').write_text('not a PNG')
         (pak_dir / 'art/grid.png').write_bytes(PNG)
+        (pak_dir / 'art/color.png').write_bytes(PNG)
         for name, width in [('large', 1025), ('zero', 0)]:
             (pak_dir / f'art/{name}.png').write_bytes(PNG[:16] + width.to_bytes(4, 'big') + PNG[20:])
         (pak_dir / 'art/header.png').write_bytes(art_model.PNG_SIGNATURE)
@@ -87,6 +88,11 @@ def run(root, fail, version=1):
             pak['content_art']['systems'][0]['wordmark'] = value
             check(art_model.validate(pak, str(pak_dir), max_schema=version) == {'malformed-content-art-wordmark'}
                   and not minischema.is_valid(pak, schema)[0], 'wordmark string bounds')
+            if version == 2:
+                pak['content_art']['systems'][0]['wordmark'] = 'art/mark.png'
+                pak['content_art']['systems'][0]['wordmark_color'] = value
+                check(art_model.validate(pak, str(pak_dir), max_schema=version) == {'malformed-content-art-wordmark-color'}
+                      and not minischema.is_valid(pak, schema)[0], 'wordmark_color string bounds')
         # Every wordmark shares the grid icon's header read; boundary variants beyond
         # the named fixture keep its reason. Dimensions are not a JSON Schema concern.
         for image, reason in (('large', 'invalid-content-art-wordmark-dimensions'),
@@ -112,7 +118,9 @@ def run(root, fail, version=1):
             expected = copy.deepcopy(merged)
             expected_files = {}
             for system in expected['systems']:
-                for slot, field, rel in [('wordmark', 'applied', 'art/mark.png'), ('grid_icon', 'grid_applied', 'art/grid.png')]:
+                for slot, field, rel in [('wordmark', 'applied', 'art/mark.png'),
+                                         ('wordmark_color', 'color_applied', 'art/color.png'),
+                                         ('grid_icon', 'grid_applied', 'art/grid.png')]:
                     name = case.get(field, {}).get(system['id'])
                     if name:
                         provider = f'mlp1/{name}.pak'

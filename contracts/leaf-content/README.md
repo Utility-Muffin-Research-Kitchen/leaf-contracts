@@ -15,11 +15,12 @@ leaf-content/
 ├── content-paks-v1.schema.json        CONTENT-1  the `provides` block shape
 ├── content-scrape-v1.schema.json      CONTENT-SCRAPE-1 optional scrape policy
 ├── content-art-v1.schema.json         CONTENT-ART-1 optional system wordmarks
-├── content-art-v2.schema.json         CONTENT-ART-2 optional wordmarks and grid icons
+├── content-art-v2.schema.json         CONTENT-ART-2 optional wordmarks, color wordmarks, grid icons
 ├── effective-catalog-v1.schema.json   CAT-1      the generation stamp shape
 ├── storefront-content-v1.schema.json  STORE-CONTENT-1  the `content[]` lane
 ├── manifests/{valid,invalid}/         one invalid fixture per rejection rule
 ├── art/fixtures.json                  companion shape, eligibility, conflicts
+├── art/grid-fixtures.json             CONTENT-ART-2 slots, per-slot conflicts
 ├── scrape/fixtures.json               companion shape + ownership rules
 ├── merge/fixtures.json                base + pak inputs → expected merged output
 ├── generations/fixtures.json          selector/stamp/publication lifecycle
@@ -43,7 +44,7 @@ them reason for reason:
 | --- | --- |
 | `content_model.py` | `provides` validation and the merge policy |
 | `scrape_model.py` | optional scrape-policy validation and catalog decoration |
-| `art_model.py` | optional wordmark validation and post-merge decoration |
+| `art_model.py` | optional wordmark, color wordmark, and grid icon validation and post-merge decoration |
 | `catalog_model.py` | selector resolution, the two validation levels, publication, cleanup |
 | `storefront_model.py` | the `content[]` lane rules and the Open-button rule |
 | `canonical.py` | canonical bytes, the tree hash, the generation digest |
@@ -109,8 +110,8 @@ python3 validate_fixtures.py         # check everything (-v for per-fixture line
 Stdlib-only Python. `minischema.py` is imported from
 `../leaf-services/scripts/` rather than copied.
 
-`art/fixtures.json`, `scrape/fixtures.json`, and `storefront/fixtures.json`
-are hand-authored and edited directly; the other
+`art/fixtures.json`, `art/grid-fixtures.json`, `scrape/fixtures.json`, and
+`storefront/fixtures.json` are hand-authored and edited directly; the other
 three fixture sets are generator output, so edit the generator and let it
 overwrite rather than hand-editing what it produced.
 
