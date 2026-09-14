@@ -643,10 +643,12 @@ pak grid icon fills in only where the pack has none. Preserve current theme/ROM
 priority and folder resolution. This order and the pak grid icon apply to Grid
 system tiles only; every other layout keeps its existing lookup order, and Cover
 Flow, Search, Apps icons and full-tile label overlays retain their existing
-behavior. Keep a
-higher-priority asynchronous load pending until it succeeds or fails. Failed
-decode advances to the next candidate. Catalog refresh, provider update/removal,
-and theme changes must invalidate affected path, failure and texture caches.
+behavior. Keep a higher-priority asynchronous load pending until it succeeds or
+fails. Failed decode advances to the next candidate. A catalog generation change,
+including provider update or removal, must invalidate path, failure and texture
+caches. A theme or icon pack change must resolve paths again; decoded textures
+are keyed by file, so it need not discard them. A reload that leaves the catalog
+generation unchanged must not discard any of these caches.
 Use catalog generation identity in derived thumbnails so same-path/same-mtime
 provider replacements cannot serve older bytes.
 
