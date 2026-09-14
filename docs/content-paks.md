@@ -631,8 +631,10 @@ In the Grid layout, look up a system tile icon in this order:
 
 1. Selected user-theme `grid/icons/<ID>.png`
 2. The existing ROM-folder `icon.png` override
-3. The user's active built-in icon pack art for that system. A Flat icon pack
-   has no entry at this step.
+3. The user's active built-in icon pack art for that system: the theme's grid
+   icon set or the photographic set for Auto, the photographic set for
+   Photographic, and the shared flat set for Flat. A pack's art for the system
+   always precedes pak art.
 4. Accepted pak `grid_icon`
 5. The existing generic pak icon-pack candidates (pak-owned systems only)
 6. The shared flat baseline icon
