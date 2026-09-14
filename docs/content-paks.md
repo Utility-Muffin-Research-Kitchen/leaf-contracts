@@ -9,6 +9,8 @@ contribute a system and the emulator that runs it:
 | --- | --- |
 | **CONTENT-1** | the `provides` block a content pak declares in its `pak.json` |
 | **CONTENT-SCRAPE-1** | optional, backward-compatible scraping identity metadata beside `provides` |
+| **CONTENT-ART-1** | optional system wordmarks beside `provides` |
+| **CONTENT-ART-2** | optional wordmarks, untinted color wordmarks, and Grid icons beside `provides` |
 | **CAT-1** | the effective catalog: generation directories, the selector, and the stamp |
 | **STORE-CONTENT-1** | the storefront `content[]` lane |
 
@@ -416,6 +418,242 @@ rewritten.
 
 ---
 
+## CONTENT-ART-1 - optional system wordmarks
+
+Your content pak can supply a system wordmark without changing its CONTENT-1
+contribution. Add this optional top-level sibling of `provides` to an otherwise
+valid manifest:
+
+```json
+{
+  "content_art": {
+    "schema": 1,
+    "systems": [
+      { "id": "SCUMMVM", "wordmark": "art/SCUMMVM-wordmark.png" }
+    ]
+  }
+}
+```
+
+CONTENT-1 stays unchanged. Older consumers ignore this sibling and retain
+bundled artwork or a system-name fallback. You don't need to raise your pak's
+minimum Leaf version solely for this cosmetic metadata.
+
+Wordmarks are tinted. The launcher draws a wordmark multiplied by the active
+theme's text color, so the image supplies only the shape. Author it as white
+(#FFFFFF) shapes on a transparent background and let alpha carry the edges.
+Any color in the RGB channels is lost or muddied by the tint.
+
+### Shape and diagnostics
+
+| Field | Rule | Reason |
+| --- | --- | --- |
+| block | Object, when present. `null` is invalid. | `malformed-content-art` |
+| `schema` | Required JSON number equal to `1`; `1.0` and `1e0` are equivalent. Booleans and strings are invalid. | `unknown-content-art-schema` |
+| `systems` | Required array of 1-32 entries. | `malformed-content-art-systems` |
+| entry | Object. | `malformed-content-art-system` |
+| `systems[].id` | Required CONTENT-1 system ID, unique within the block. | `malformed-content-art-system-id`, `duplicate-content-art-system` |
+| `systems[].wordmark` | Required non-empty string, at most 4096 characters, no NUL. | `malformed-content-art-wordmark` |
+| all objects | Only `schema` and `systems` in the block; only `id` and `wordmark` in each entry. | `unknown-content-art-field` |
+| wordmark path | Pak-relative, existing regular file; apply CONTENT-1 path checks. | `content-art-absolute-path`, `content-art-path-traversal`, `content-art-escaping-symlink`, `content-art-missing-file`, `content-art-non-regular-file` |
+| wordmark format | `.png` suffix (case-insensitive), PNG signature, and an initial 13-byte IHDR chunk. A malformed or truncated header is unsupported. | `unsupported-content-art-image` |
+| wordmark dimensions | IHDR width and height each 1-1024. | `invalid-content-art-wordmark-dimensions` |
+| wordmark read | File must be readable during compilation. | `unreadable-content-art-image` |
+
+Validate this companion independently from CONTENT-1. Missing metadata is valid
+and inert. Record at least one companion violation in catalog diagnostics and
+ignore an invalid block as a unit. You may report additional violations. Never drop a system, core, or working app because
+optional artwork is invalid. The PNG signature and IHDR checks identify the
+format and bound its size; the runtime image loader remains responsible for full
+decoding. An undecodable or unsupported PNG falls through to the next artwork
+candidate.
+
+If your JSON parser cannot preserve embedded NUL characters, reject the entire
+companion with `malformed-content-art` before a string can be silently truncated.
+Parsers that preserve NUL may report the specific field violation. In both cases,
+keep an otherwise valid CONTENT-1 contribution.
+
+### Eligibility after merge
+
+Run the ordinary CONTENT-1 merge unchanged, then consider valid companions from
+accepted contributors. An entry is eligible only when its system survives and:
+
+- The system's generated `provider` equals this pak's install identity; or
+- The system is release-owned (no `provider`), and this pak declares a
+  `system_extensions` entry for it naming at least one surviving alternate core
+  contributed by this same pak. That core must appear in the merged system's
+  `alternate_cores`.
+
+A base core, another pak's core, or a refused contributed core cannot authorize
+artwork. You cannot decorate another pak's system, even when your extension
+adds a working alternate core. A missing or ineligible target produces
+`ineligible-content-art-system`. Discard that entry only, retaining unrelated
+eligible entries from the same valid block.
+
+If two or more eligible extension paks claim the same release-owned ID, discard
+all claims for that ID and report `conflicting-content-art-system` for each
+claimant. Resolve conflicts after eligibility, independently of filesystem
+order. Ownership, names, discovery, defaults, and icon fields never change.
+
+### Catalog fields and freshness
+
+Decorate each eligible, uncontested system row with both:
+
+```json
+"wordmark": "art/SCUMMVM-wordmark.png",
+"wordmark_provider": "mlp1/ScummVM.pak"
+```
+
+`wordmark_provider` is the existing provider install identity, never a mount
+point. It is separate from system `provider`: native PICO-8 artwork can come
+from a pak while PICO8 remains release-owned. Resolve the relative `wordmark`
+against that provider's live install root using CAT-1 contributor `source_id`
+and existing storage-source resolution. CONTENT-1 currently accepts only the
+primary storage source. Missing or malformed optional fields disable that
+candidate, not the system row. Readers without CONTENT-ART-1 support ignore
+both new fields.
+
+For each applied entry, add its relative PNG path and `pak.json` to that
+provider's existing CAT-1 `files[]` list, deduplicated and sorted by `rel`, with
+the existing SHA-256 file hashes. Entries that don't affect output add no art
+fingerprints. `provides_sha256` continues to cover `provides` alone. The
+existing `output.systems_sha256` covers decorated rows. Changing only PNG bytes
+at the same path must change the contributor fingerprint and generation digest,
+even when the serialized system row is identical. Provider removal, missing
+files, and root relocation use the existing provenance and selector rules.
+No stamp field, stamp schema, or runtime manifest read is added.
+
+### Display fallback
+
+Look up the game-details wordmark in this order. A `.color.png` file and the
+catalog `wordmark_color` field are full-color wordmarks drawn without tint; every
+other image candidate is tinted as described above.
+
+1. ROM-folder `wordmark.color.png` (untinted)
+2. ROM-folder `wordmark.png` (tinted)
+3. Selected user-theme `grid/wordmarks/<ID>.color.png` (untinted)
+4. Selected user-theme `grid/wordmarks/<ID>.png` (tinted)
+5. Accepted catalog `wordmark_color` (untinted, CONTENT-ART-2 only)
+6. Accepted catalog `wordmark` (tinted)
+7. Bundled `res/grid_wordmarks/<ID>.color.png` (untinted)
+8. Bundled `res/grid_wordmarks/<ID>.png` (tinted)
+9. The system display name as text
+
+Preserve existing ROM-folder/source resolution and theme identity handling.
+
+The launcher fully decodes a wordmark and then downscales it to at most 512 px
+on each edge, so the 512 px figure does not limit decode memory. The 1-1024
+dimension rule does: before decoding a candidate from any source, the launcher
+reads its IHDR header and refuses one outside 1-1024 on either edge, the same
+way it treats grid icons. A missing file, a header outside that range, or a
+failed decode advances to the next candidate; an asynchronous pending load is
+not a permanent failure. Catalog generation and provider asset changes must
+invalidate path memos, textures, and derived thumbnails, including replacement
+at the same path. No standalone art-pack format is defined here.
+
+## CONTENT-ART-2 - wordmarks and grid icons
+
+You can provide a separate full-color icon for the system-selection Grid while
+retaining your wordmark for game details, and a full-color wordmark that is drawn
+without the theme tint. Use `content_art.schema: 2` with
+`content-art-v2.schema.json`. CONTENT-1 and CAT-1 stay unchanged, and readers
+continue to accept CONTENT-ART-1. Schema values use numeric equality here too:
+`2`, `2.0` and `2e0` identify version 2. Booleans and strings are invalid.
+
+```json
+"content_art": {
+  "schema": 2,
+  "systems": [{
+    "id": "SCUMMVM",
+    "wordmark": "art/SCUMMVM-wordmark.png",
+    "wordmark_color": "art/SCUMMVM-wordmark-color.png",
+    "grid_icon": "art/SCUMMVM-grid.png"
+  }]
+}
+```
+
+Each system entry requires `id` and at least one of `wordmark`,
+`wordmark_color` or `grid_icon`. Any image can be omitted; a present image must
+be a nonempty string. The block accepts only `schema` and `systems`, and rows
+accept only those four fields. The v1 ID, uniqueness, count, string length, path
+containment, regular file, readability and PNG header rules apply to every image
+slot. An empty row reports `missing-content-art-image`; an invalid grid path
+string reports `malformed-content-art-grid-icon`; an invalid color wordmark path
+string reports `malformed-content-art-wordmark-color`. Other malformed fields
+retain the v1 reasons.
+
+| Slot | Meaning | Authoring | Dimensions |
+| --- | --- | --- | --- |
+| `wordmark` | Game-details wordmark, tinted with the theme's text color. | White (#FFFFFF) shapes on a transparent background. | 1-1024 per edge, else `invalid-content-art-wordmark-dimensions` |
+| `wordmark_color` | Game-details wordmark drawn without tint. | RGBA with its own colors. | 1-1024 per edge, else `invalid-content-art-wordmark-dimensions` |
+| `grid_icon` | Full-color Grid system icon, not tinted. | 512x512 RGBA. | 1-1024 per edge, else `invalid-content-art-grid-dimensions` |
+
+A row may carry both wordmarks. In the [display fallback](#display-fallback)
+order the catalog `wordmark_color` is tried before the catalog `wordmark`, so the
+tinted image is used only when the color one is absent, over the dimension
+limit, or fails to decode.
+
+For every image slot, compilation requires the PNG signature, an initial 13-byte
+IHDR chunk and nonzero width/height no greater than 1024. Malformed/truncated
+headers report `unsupported-content-art-image`; dimensions outside 1-1024 report
+the slot's dimensions reason from the table. Full decoding happens in the
+launcher: a corrupt or unsupported image falls through without blocking play.
+Keep grid icon proportions and colors; that slot is not tinted as a wordmark.
+
+The optional block fails soft as a unit, including when only one referenced
+image is invalid. Its CONTENT-1 contribution remains usable. An older v1-only
+reader ignores the entire schema-2 companion, including its wordmark, and uses
+its ordinary artwork fallback. Do not raise a minimum Leaf version for these
+cosmetic fields. Ship the new reader before migrating a pak's companion.
+
+Post-merge eligibility is the same as v1: your pak must own the surviving system,
+or extend a release-owned system with its own surviving alternate core. Resolve
+claims independently for each `(system ID, image slot)`, including claims from
+mixed v1 and v2 paks. `wordmark`, `wordmark_color` and `grid_icon` are three
+separate slots. Ignore every competing claim for that slot. A conflict in one
+slot must not discard a unique claim in another: a grid conflict keeps a unique
+wordmark, and a `wordmark_color` conflict keeps a unique tinted `wordmark`. Retain
+`conflicting-content-art-system`; its detail is the system ID for `wordmark`,
+`<ID>:wordmark_color` for color wordmarks, and `<ID>:grid_icon` for grid icons.
+Ineligible entries retain the v1 diagnostic.
+
+Decorated system rows may contain `wordmark_color` and `wordmark_color_provider`,
+and `grid_icon` and `grid_icon_provider`, alongside `wordmark` and
+`wordmark_provider`. Each pair has its own provider identity; none changes
+system ownership. Serialize pak-relative image paths and resolve
+against the provider's live install root, rechecking containment and a regular
+file. A malformed optional pair is ignored without discarding the row or another
+valid pair. Fingerprint every applied image and its manifest in CAT-1's existing
+contributor file list and cover the decorated output with the systems digest.
+No runtime manifest polling is needed.
+
+In the Grid layout, look up a system tile icon in this order:
+
+1. Selected user-theme `grid/icons/<ID>.png`
+2. The existing ROM-folder `icon.png` override
+3. The user's active built-in icon pack art for that system: the theme's grid
+   icon set or the photographic set for Auto, the photographic set for
+   Photographic, and the shared flat set for Flat. A pack's art for the system
+   always precedes pak art.
+4. Accepted pak `grid_icon`
+5. The existing generic pak icon-pack candidates (pak-owned systems only)
+6. The shared flat baseline icon
+7. The placeholder
+
+A user who picked an icon pack keeps that pack's art for a system it covers; a
+pak grid icon fills in only where the pack has none. Preserve current theme/ROM
+priority and folder resolution. This order and the pak grid icon apply to Grid
+system tiles only; every other layout keeps its existing lookup order, and Cover
+Flow, Search, Apps icons and full-tile label overlays retain their existing
+behavior. Keep a higher-priority asynchronous load pending until it succeeds or
+fails. Failed decode advances to the next candidate. A catalog generation change,
+including provider update or removal, must invalidate path, failure and texture
+caches. A theme or icon pack change must resolve paths again; decoded textures
+are keyed by file, so it need not discard them. A reload that leaves the catalog
+generation unchanged must not discard any of these caches.
+Use catalog generation identity in derived thumbnails so same-path/same-mtime
+provider replacements cannot serve older bytes.
+
 ## CAT-1 — the effective catalog
 
 ### Layout
@@ -688,7 +926,9 @@ explicit rule:
 
 `content-paks-v1`, `effective-catalog-v1`, and `storefront-content-v1` are
 frozen once the first content pak publishes. `content-scrape-v1` freezes when
-the first pak using it publishes. Until the applicable freeze:
+the first pak using it publishes. `content-art-v1` and `content-art-v2` freeze
+together when the first pak using either one publishes. Until the applicable
+freeze:
 
 1. Change this file first. It is the normative text.
 2. Update the schema and the fixture tree in
@@ -699,6 +939,11 @@ the first pak using it publishes. Until the applicable freeze:
 4. A breaking change after freeze is a **new** version identifier
    (`content-paks-v2`), never a mutation of v1. `provides.schema` is refused
    rather than guessed at precisely so a v2 pak fails loudly on a v1 device.
+5. After the content art freeze, a new `content_art` field or slot is a new
+   schema number with its own schema file, never a mutation of
+   `content-art-v1` or `content-art-v2`. Fixtures that exercise
+   `unknown-content-art-schema` use a number no reader will ever accept
+   (`99`), not the next version.
 
 ## Related
 

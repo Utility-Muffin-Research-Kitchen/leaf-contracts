@@ -23,6 +23,8 @@ Stdlib-only Python. No install step.
 | Contract | Covers | Normative text |
 | --- | --- | --- |
 | `CONTENT-1` | the `provides` block a content pak declares | [`docs/content-paks.md`](docs/content-paks.md) |
+| `CONTENT-ART-2` | optional wordmarks, untinted color wordmarks, and Grid icons, retaining v1 reader support | [`docs/content-paks.md`](docs/content-paks.md) |
+| `CONTENT-ART-1` | optional system wordmarks in a `content_art` companion | [`docs/content-paks.md`](docs/content-paks.md) |
 | `CAT-1` | the effective catalog: generations, selector, stamp | same |
 | `STORE-CONTENT-1` | the storefront `content[]` lane | same |
 | `SVC-1` | the `service` block a service pak declares | `contracts/leaf-services/README.md` |
