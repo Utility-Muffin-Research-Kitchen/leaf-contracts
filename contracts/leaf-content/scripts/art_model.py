@@ -55,13 +55,12 @@ def validate(pak: dict, pak_dir: str, *, max_schema: int = 2) -> set[str]:
             try:
                 with open(os.path.join(pak_dir, rel), "rb") as image:
                     header = image.read(24)
-                if not rel.lower().endswith(".png") or header[:8] != PNG_SIGNATURE:
+                if not rel.lower().endswith(".png") or header[:8] != PNG_SIGNATURE \
+                        or len(header) != 24 or header[8:16] != b"\0\0\0\rIHDR":
                     errors.add("unsupported-content-art-image")
-                elif slot == "grid_icon":
-                    if len(header) != 24 or header[8:16] != b"\0\0\0\rIHDR":
-                        errors.add("unsupported-content-art-image")
-                    elif not all(1 <= int.from_bytes(header[i:i+4], "big") <= 1024 for i in (16, 20)):
-                        errors.add("invalid-content-art-grid-dimensions")
+                elif not all(1 <= int.from_bytes(header[i:i+4], "big") <= 1024 for i in (16, 20)):
+                    errors.add("invalid-content-art-grid-dimensions" if slot == "grid_icon"
+                               else "invalid-content-art-wordmark-dimensions")
             except OSError:
                 errors.add("unreadable-content-art-image")
     return errors

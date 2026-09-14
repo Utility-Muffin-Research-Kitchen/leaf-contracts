@@ -63,7 +63,8 @@ def run(root, fail, version=1):
             filesystem_only = case.get('reason', '').startswith('content-art-') or \
                 case.get('reason') in {'duplicate-content-art-system',
                                       'unsupported-content-art-image',
-                                      'unreadable-content-art-image', 'invalid-content-art-grid-dimensions'}
+                                      'unreadable-content-art-image', 'invalid-content-art-grid-dimensions',
+                                      'invalid-content-art-wordmark-dimensions'}
             check(shape_ok == (not expected or filesystem_only), case['name'] + ': schema')
             check(minischema.is_valid(pak, old_schema)[0] and
                   not content_model.validate_manifest(pak, str(pak_dir)),
@@ -86,6 +87,15 @@ def run(root, fail, version=1):
             pak['content_art']['systems'][0]['wordmark'] = value
             check(art_model.validate(pak, str(pak_dir), max_schema=version) == {'malformed-content-art-wordmark'}
                   and not minischema.is_valid(pak, schema)[0], 'wordmark string bounds')
+        # Every wordmark shares the grid icon's header read; boundary variants beyond
+        # the named fixture keep its reason. Dimensions are not a JSON Schema concern.
+        for image, reason in (('large', 'invalid-content-art-wordmark-dimensions'),
+                              ('zero', 'invalid-content-art-wordmark-dimensions'),
+                              ('header', 'unsupported-content-art-image')):
+            pak = copy.deepcopy(document['paks']['owner'])
+            pak['content_art'] = dict(schema=version, systems=[dict(id='SCUMMVM', wordmark=f'art/{image}.png')])
+            check(art_model.validate(pak, str(pak_dir), max_schema=version) == {reason}
+                  and minischema.is_valid(pak, schema)[0], f'wordmark header {image}')
 
         for case in document['generation_cases']:
             contributors = [dict(provider=f'mlp1/{name}.pak',

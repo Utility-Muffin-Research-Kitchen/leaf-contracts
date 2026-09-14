@@ -439,6 +439,11 @@ CONTENT-1 stays unchanged. Older consumers ignore this sibling and retain
 bundled artwork or a system-name fallback. You don't need to raise your pak's
 minimum Leaf version solely for this cosmetic metadata.
 
+Wordmarks are tinted. The launcher draws a wordmark multiplied by the active
+theme's text color, so the image supplies only the shape. Author it as white
+(#FFFFFF) shapes on a transparent background and let alpha carry the edges.
+Any color in the RGB channels is lost or muddied by the tint.
+
 ### Shape and diagnostics
 
 | Field | Rule | Reason |
@@ -451,15 +456,17 @@ minimum Leaf version solely for this cosmetic metadata.
 | `systems[].wordmark` | Required non-empty string, at most 4096 characters, no NUL. | `malformed-content-art-wordmark` |
 | all objects | Only `schema` and `systems` in the block; only `id` and `wordmark` in each entry. | `unknown-content-art-field` |
 | wordmark path | Pak-relative, existing regular file; apply CONTENT-1 path checks. | `content-art-absolute-path`, `content-art-path-traversal`, `content-art-escaping-symlink`, `content-art-missing-file`, `content-art-non-regular-file` |
-| wordmark format | `.png` suffix (case-insensitive) and PNG signature. | `unsupported-content-art-image` |
+| wordmark format | `.png` suffix (case-insensitive), PNG signature, and an initial 13-byte IHDR chunk. A malformed or truncated header is unsupported. | `unsupported-content-art-image` |
+| wordmark dimensions | IHDR width and height each 1-1024. | `invalid-content-art-wordmark-dimensions` |
 | wordmark read | File must be readable during compilation. | `unreadable-content-art-image` |
 
 Validate this companion independently from CONTENT-1. Missing metadata is valid
 and inert. Record at least one companion violation in catalog diagnostics and
 ignore an invalid block as a unit. You may report additional violations. Never drop a system, core, or working app because
-optional artwork is invalid. The PNG signature check identifies the format;
-the runtime image loader remains responsible for full decoding. An undecodable
-or unsupported PNG falls through to the next artwork candidate.
+optional artwork is invalid. The PNG signature and IHDR checks identify the
+format and bound its size; the runtime image loader remains responsible for full
+decoding. An undecodable or unsupported PNG falls through to the next artwork
+candidate.
 
 If your JSON parser cannot preserve embedded NUL characters, reject the entire
 companion with `malformed-content-art` before a string can be silently truncated.
@@ -523,7 +530,11 @@ Look up a wordmark in this order: ROM-folder `wordmark.png`, selected user-theme
 `res/grid_wordmarks/<ID>.png`, then the system display name. Preserve existing
 ROM-folder/source resolution and theme identity handling.
 
-Use the existing image loader with its 512px decode cap. A missing file or
+The launcher fully decodes a wordmark and then downscales it to at most 512 px
+on each edge, so the 512 px figure does not limit decode memory. The 1-1024
+dimension rule does: before decoding a candidate from any source, the launcher
+reads its IHDR header and refuses one outside 1-1024 on either edge, the same
+way it treats grid icons. A missing file, a header outside that range, or a
 failed decode advances to the next candidate; an asynchronous pending load is
 not a permanent failure. Catalog generation and provider asset changes must
 invalidate path memos, textures, and derived thumbnails, including replacement
@@ -552,7 +563,10 @@ Each system entry requires `id` and at least one of `wordmark` or `grid_icon`.
 Either image can be omitted; a present image must be a nonempty string. The
 block accepts only `schema` and `systems`, and rows accept only those three
 fields. The v1 ID, uniqueness, count, string length, path containment, regular
-file, readability and PNG rules apply to both image slots. An empty row reports
+file, readability and PNG header rules apply to both image slots. A v2 wordmark
+keeps the v1 1-1024 dimension rule and `invalid-content-art-wordmark-dimensions`,
+and is tinted exactly like a v1 wordmark: author it as white (#FFFFFF) shapes on
+a transparent background. An empty row reports
 `missing-content-art-image`; an invalid grid path string reports
 `malformed-content-art-grid-icon`. Other malformed fields retain the v1 reasons.
 

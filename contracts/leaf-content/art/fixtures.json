@@ -596,6 +596,20 @@
       "setup": null
     },
     {
+      "name": "invalid-content-art-wordmark-dimensions",
+      "content_art": {
+        "schema": 1,
+        "systems": [
+          {
+            "id": "SCUMMVM",
+            "wordmark": "art/large.png"
+          }
+        ]
+      },
+      "reason": "invalid-content-art-wordmark-dimensions",
+      "setup": null
+    },
+    {
       "name": "unreadable-content-art-image",
       "content_art": {
         "schema": 1,
