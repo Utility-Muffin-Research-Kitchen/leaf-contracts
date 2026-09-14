@@ -427,7 +427,7 @@
     {
       "name": "unknown-content-art-schema",
       "content_art": {
-        "schema": 2,
+        "schema": 99,
         "systems": [
           {
             "id": "SCUMMVM",

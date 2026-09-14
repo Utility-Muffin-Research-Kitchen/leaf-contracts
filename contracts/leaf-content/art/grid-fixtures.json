@@ -709,7 +709,7 @@
     {
       "name": "unknown-schema",
       "content_art": {
-        "schema": 3,
+        "schema": 99,
         "systems": [
           {
             "id": "SCUMMVM",

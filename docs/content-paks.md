@@ -910,8 +910,9 @@ explicit rule:
 
 `content-paks-v1`, `effective-catalog-v1`, and `storefront-content-v1` are
 frozen once the first content pak publishes. `content-scrape-v1` freezes when
-the first pak using it publishes. `content-art-v1` freezes when the first pak
-using it publishes. Until the applicable freeze:
+the first pak using it publishes. `content-art-v1` and `content-art-v2` freeze
+together when the first pak using either one publishes. Until the applicable
+freeze:
 
 1. Change this file first. It is the normative text.
 2. Update the schema and the fixture tree in
@@ -922,6 +923,11 @@ using it publishes. Until the applicable freeze:
 4. A breaking change after freeze is a **new** version identifier
    (`content-paks-v2`), never a mutation of v1. `provides.schema` is refused
    rather than guessed at precisely so a v2 pak fails loudly on a v1 device.
+5. After the content art freeze, a new `content_art` field or slot is a new
+   schema number with its own schema file, never a mutation of
+   `content-art-v1` or `content-art-v2`. Fixtures that exercise
+   `unknown-content-art-schema` use a number no reader will ever accept
+   (`99`), not the next version.
 
 ## Related
 
