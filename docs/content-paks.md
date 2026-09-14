@@ -10,7 +10,7 @@ contribute a system and the emulator that runs it:
 | **CONTENT-1** | the `provides` block a content pak declares in its `pak.json` |
 | **CONTENT-SCRAPE-1** | optional, backward-compatible scraping identity metadata beside `provides` |
 | **CONTENT-ART-1** | optional system wordmarks beside `provides` |
-| **CONTENT-ART-2** | optional wordmarks and Grid icons beside `provides` |
+| **CONTENT-ART-2** | optional wordmarks, untinted color wordmarks, and Grid icons beside `provides` |
 | **CAT-1** | the effective catalog: generation directories, the selector, and the stamp |
 | **STORE-CONTENT-1** | the storefront `content[]` lane |
 
@@ -627,11 +627,23 @@ valid pair. Fingerprint every applied image and its manifest in CAT-1's existing
 contributor file list and cover the decorated output with the systems digest.
 No runtime manifest polling is needed.
 
-Grid lookup order is selected user-theme `grid/icons/<ID>.png`, the existing
-ROM-folder `icon.png` override, accepted pak grid icon, then the existing generic
-pak/bundled icon-pack candidates and placeholder. Preserve current theme/ROM
-priority and folder resolution. The grid icon applies in Grid only; Cover Flow,
-Apps icons and full-tile label overlays retain their existing behavior. Keep a
+In the Grid layout, look up a system tile icon in this order:
+
+1. Selected user-theme `grid/icons/<ID>.png`
+2. The existing ROM-folder `icon.png` override
+3. The user's active built-in icon pack art for that system. A Flat icon pack
+   has no entry at this step.
+4. Accepted pak `grid_icon`
+5. The existing generic pak icon-pack candidates (pak-owned systems only)
+6. The shared flat baseline icon
+7. The placeholder
+
+A user who picked an icon pack keeps that pack's art for a system it covers; a
+pak grid icon fills in only where the pack has none. Preserve current theme/ROM
+priority and folder resolution. This order and the pak grid icon apply to Grid
+system tiles only; every other layout keeps its existing lookup order, and Cover
+Flow, Search, Apps icons and full-tile label overlays retain their existing
+behavior. Keep a
 higher-priority asynchronous load pending until it succeeds or fails. Failed
 decode advances to the next candidate. Catalog refresh, provider update/removal,
 and theme changes must invalidate affected path, failure and texture caches.
