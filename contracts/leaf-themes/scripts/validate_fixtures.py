@@ -84,6 +84,15 @@ def manifest_of(path: str):
 # Fixture archives
 # ---------------------------------------------------------------------------
 
+def findings_disagree(path: str, got) -> str | None:
+    """validate_archive_findings must name exactly validate_archive's slugs."""
+    reasons, warnings = theme_model.validate_archive_findings(path)
+    slugs = (sorted({slug for slug, _ in reasons}), sorted({slug for slug, _ in warnings}))
+    if slugs != tuple(got):
+        return f"findings name {slugs}, validate_archive says {tuple(got)}"
+    return None
+
+
 def run_fixtures() -> None:
     fixtures_dir = os.path.join(ROOT, "fixtures")
     document = load_json(os.path.join(fixtures_dir, "expect.json"))
@@ -111,6 +120,7 @@ def run_fixtures() -> None:
                 path = handle.name
         try:
             got = theme_model.validate_archive(path)
+            disagree = findings_disagree(path, got)
             obj = manifest_of(path)
         finally:
             if case.get("in_memory"):
@@ -118,6 +128,9 @@ def run_fixtures() -> None:
         if got != (sorted(reasons), sorted(warnings)):
             fail(f"{rel}: got reasons {got[0]} warnings {got[1]}, expected "
                  f"{sorted(reasons)} {sorted(warnings)}")
+            continue
+        if disagree:
+            fail(f"{rel}: {disagree}")
             continue
         for reason in reasons:
             claimed.setdefault(reason, []).append(rel)
@@ -162,11 +175,14 @@ def check_archive(label: str, archive: bytes, reasons, warnings=()) -> None:
         path = handle.name
     try:
         got = theme_model.validate_archive(path)
+        disagree = findings_disagree(path, got)
     finally:
         os.unlink(path)
     want = (sorted(reasons), sorted(warnings))
     if got != want:
         fail(f"variant {label}: got {got}, expected {want}")
+    elif disagree:
+        fail(f"variant {label}: {disagree}")
     else:
         ok(f"variant {label} -> {reasons or 'accepted'}")
 

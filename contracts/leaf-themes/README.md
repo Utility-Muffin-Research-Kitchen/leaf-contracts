@@ -31,9 +31,18 @@ import theme_model
 
 theme_model.validate_manifest(obj)    # -> ["theme-grid-invalid", ...]
 theme_model.validate_archive(path)    # -> (reasons, warnings), both sorted
+theme_model.validate_archive_findings(path)
+                                       # -> the same checks as (slug, entry name) pairs
 ```
 
 A package is accepted when `reasons` is empty. Warnings never refuse anything.
+
+`validate_archive_findings` says where each problem is, so a submitter can be
+told which file to fix: the zip entry a rule is about, such as
+`neon-nights/grid/icons/GB.png`, or `None` for a rule about the whole archive.
+Its slugs always equal `validate_archive`'s, and the fixture checks enforce
+that. Entry names come from the archive and are untrusted; escape them before
+display.
 
 The validator reads image **headers** only: the PNG signature and IHDR chunk,
 or JPEG markers up to the frame header. That is enough to identify the format
