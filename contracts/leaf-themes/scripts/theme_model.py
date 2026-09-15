@@ -600,8 +600,11 @@ def validate_archive(path: str) -> tuple[list[str], list[str]]:
             obj = parse_manifest_bytes(manifest[4])
         except (ValueError, RecursionError):
             obj = None
+        # Valid JSON that is not an object (an array, string, number or null)
+        # is as malformed as a syntax error.
+        if not isinstance(obj, dict):
             reasons.add("theme-malformed-manifest")
-        if obj is not None:
+        else:
             field_reasons = validate_manifest(obj)
             reasons.update(field_reasons)
             theme_id = obj.get("id")
