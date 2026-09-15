@@ -510,6 +510,9 @@ def _classify(rel: str, is_dir: bool):
 # The archive
 # --------------------------------------------------------------------------
 
+Finding = tuple[str, "str | None"]
+
+
 def validate_archive(path: str) -> tuple[list[str], list[str]]:
     """(sorted reason slugs, sorted warning slugs) for a theme .zip.
 
@@ -517,39 +520,52 @@ def validate_archive(path: str) -> tuple[list[str], list[str]]:
     validation, so nothing is ever decompressed from an archive whose
     declared sizes are over a limit. Stages 4 and 5 report every violation.
     """
+    reasons, warnings = validate_archive_findings(path)
+    return sorted({slug for slug, _ in reasons}), sorted({slug for slug, _ in warnings})
+
+
+def validate_archive_findings(path: str) -> tuple[list[Finding], list[Finding]]:
+    """The same checks as validate_archive, with where each one applies.
+
+    Each finding is (slug, entry name) for a rule about one zip entry, such as
+    "neon-nights/grid/icons/GB.png", or (slug, None) for a rule about the
+    whole archive. Entry names come from the archive and are untrusted: escape
+    them before showing them anywhere. The set of slugs always equals
+    validate_archive's.
+    """
     try:
         size = os.stat(path).st_size
     except OSError:
-        return ["theme-malformed-archive"], []
+        return [("theme-malformed-archive", None)], []
     if size > MAX_ARCHIVE_BYTES:
-        return ["theme-archive-too-large"], []
+        return [("theme-archive-too-large", None)], []
     with open(path, "rb") as handle:
         blob = handle.read(MAX_ARCHIVE_BYTES + 1)
 
     # Stage 1: container structure and entry count.
     entries = _read_central_directory(blob)
     if isinstance(entries, str):
-        return [entries], []
+        return [(entries, None)], []
 
     # Stage 2: declared sizes and encodings.
-    reasons: set[str] = set()
+    reasons: set[Finding] = set()
     for entry in entries:
         if entry.method not in (0, 8) or entry.flags & 0x0001:
-            reasons.add("theme-unsupported-compression")
+            reasons.add(("theme-unsupported-compression", _where(entry)))
         if entry.usize > MAX_RATIO * entry.csize:
-            reasons.add("theme-compression-ratio")
+            reasons.add(("theme-compression-ratio", _where(entry)))
     if sum(entry.usize for entry in entries) > MAX_UNCOMPRESSED_BYTES:
-        reasons.add("theme-uncompressed-too-large")
+        reasons.add(("theme-uncompressed-too-large", None))
     if reasons:
-        return sorted(reasons), []
+        return _sorted_findings(reasons), []
 
     # Stage 3: integrity. Every byte is bounded by stage 2 now.
     for entry in entries:
         if entry.method == 0 and entry.csize != entry.usize:
-            return ["theme-malformed-archive"], []
+            return [("theme-malformed-archive", None)], []
         entry.data = _inflate(entry, blob)
         if entry.data is None:
-            return ["theme-malformed-archive"], []
+            return [("theme-malformed-archive", None)], []
 
     # Stage 4: names, types, layout.
     clean: list[_Entry] = []
@@ -557,19 +573,19 @@ def validate_archive(path: str) -> tuple[list[str], list[str]]:
     for entry in entries:
         reason = _name_reason(entry)
         if reason:
-            reasons.add(reason)
+            reasons.add((reason, _where(entry)))
             continue
         key = entry.name.rstrip("/").casefold()
         if key in seen:
-            reasons.add("theme-duplicate-entry")
+            reasons.add(("theme-duplicate-entry", _where(entry)))
             continue
         seen.add(key)
         clean.append(entry)
 
     roots = {entry.name.split("/", 1)[0] for entry in clean}
     if len(roots) != 1 or any("/" not in entry.name for entry in clean):
-        reasons.add("theme-not-single-folder")
-        return sorted(reasons), []
+        reasons.add(("theme-not-single-folder", None))
+        return _sorted_findings(reasons), []
     root = roots.pop()
 
     slots: dict[str, tuple] = {}
@@ -578,23 +594,26 @@ def validate_archive(path: str) -> tuple[list[str], list[str]]:
         rel = entry.name[len(root) + 1:]
         result = _classify(rel, entry.is_dir)
         if isinstance(result, str):
-            reasons.add(result)
+            reasons.add((result, _where(entry)))
             continue
         if result[0] == "dir":
             continue
-        slots[rel] = result + (entry.data,)
+        slots[rel] = result + (entry.data, _where(entry))
         if result[0] == "wallpaper":
             wallpapers[result[1]] = wallpapers.get(result[1], 0) + 1
-    if any(count > 1 for count in wallpapers.values()):
-        reasons.add("theme-multiple-wallpapers")
+    for view, count in wallpapers.items():
+        if count > 1:
+            reasons.add(("theme-multiple-wallpapers",
+                         f"{root}/{view}/" if view else f"{root}/"))
 
     # Stage 5: contents.
-    warnings: set[str] = set()
+    warnings: set[Finding] = set()
     manifest = slots.get("theme.json")
+    manifest_name = f"{root}/theme.json"
     if manifest is None:
-        reasons.add("theme-missing-manifest")
+        reasons.add(("theme-missing-manifest", None))
     elif len(manifest[4]) > MAX_MANIFEST_BYTES:
-        reasons.add("theme-manifest-too-large")
+        reasons.add(("theme-manifest-too-large", manifest_name))
     else:
         try:
             obj = parse_manifest_bytes(manifest[4])
@@ -603,23 +622,23 @@ def validate_archive(path: str) -> tuple[list[str], list[str]]:
         # Valid JSON that is not an object (an array, string, number or null)
         # is as malformed as a syntax error.
         if not isinstance(obj, dict):
-            reasons.add("theme-malformed-manifest")
+            reasons.add(("theme-malformed-manifest", manifest_name))
         else:
             field_reasons = validate_manifest(obj)
-            reasons.update(field_reasons)
+            reasons.update((slug, manifest_name) for slug in field_reasons)
             theme_id = obj.get("id")
             if "theme-unknown-schema" not in field_reasons and \
                     "theme-id-invalid" not in field_reasons:
                 if theme_id != root:
-                    reasons.add("theme-id-mismatch")
+                    reasons.add(("theme-id-mismatch", manifest_name))
                 if theme_id.casefold() in {n.casefold() for n in RESERVED_INSTALL_NAMES}:
-                    reasons.add("theme-reserved-name")
+                    reasons.add(("theme-reserved-name", manifest_name))
 
     if "preview.png" not in slots:
-        reasons.add("theme-missing-preview")
+        reasons.add(("theme-missing-preview", None))
 
     art_files = 0
-    for rel, (slot, _view, kind, _system, data) in sorted(slots.items()):
+    for rel, (slot, _view, kind, _system, data, name) in sorted(slots.items()):
         if slot not in ("preview", "wallpaper", "art"):
             continue
         if slot != "preview":
@@ -629,7 +648,7 @@ def validate_archive(path: str) -> tuple[list[str], list[str]]:
         else:
             dims = jpeg_dimensions(data)
         if dims is None:
-            reasons.add("theme-unsupported-image")
+            reasons.add(("theme-unsupported-image", name))
             continue
         width, height = dims
         if slot == "preview":
@@ -639,9 +658,18 @@ def validate_archive(path: str) -> tuple[list[str], list[str]]:
         else:
             ok = 1 <= width <= ART_MAX_PX and 1 <= height <= ART_MAX_PX
         if not ok:
-            reasons.add("theme-image-dimensions")
+            reasons.add(("theme-image-dimensions", name))
         elif kind == "icons" and (width, height) != (ICON_TARGET_PX, ICON_TARGET_PX):
-            warnings.add("theme-icon-off-size")
+            warnings.add(("theme-icon-off-size", name))
     if art_files == 0:
-        warnings.add("theme-no-art")
-    return sorted(reasons), sorted(warnings)
+        warnings.add(("theme-no-art", None))
+    return _sorted_findings(reasons), _sorted_findings(warnings)
+
+
+def _where(entry: _Entry) -> str:
+    """An entry's name for a finding, even when it is not valid UTF-8."""
+    return entry.raw_name.decode("utf-8", "replace")
+
+
+def _sorted_findings(findings) -> list[Finding]:
+    return sorted(findings, key=lambda finding: (finding[0], finding[1] or ""))
