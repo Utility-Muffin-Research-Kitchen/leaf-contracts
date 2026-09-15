@@ -158,6 +158,48 @@ five new ones marked **new**.
 `Roms/` folder per console, per
 [`../canonical-user-system-folders.md`](../canonical-user-system-folders.md).
 
+### Launch core selection
+
+`default_core` and `alternate_cores` also decide which core a launch uses:
+
+1. A saved core choice wins when the system lists that core and it is
+   available. A game's saved choice masks the system's, even when the game's
+   choice turns out to be unavailable.
+2. Otherwise the launcher uses `default_core` when it is available.
+3. **Only when the default is unavailable**, the launcher uses the first
+   available entry of `alternate_cores`, in declared order, whatever its
+   `type`.
+4. If no listed core is available, the launch fails. The launcher never
+   substitutes a core the system does not list.
+
+Available `alternate_cores` are offered in the launcher's core picker; being
+an alternate never makes a core start ahead of an available default.
+
+Availability is checked for one core at a time, when the launch is requested,
+and covers only these selection checks:
+
+- A `type: "path"` core is available when its executable resolves, it
+  supports the content being launched, and any launch preflight specific to
+  that core (for example native PICO-8's) passes.
+- A `type: "retroarch"` core is available when it is packaged and that exact
+  core file resolves.
+
+Everything after selection belongs to that launch and never falls back. If a
+later check fails — an explicitly chosen BIOS file that is missing or invalid,
+a missing RetroArch executable, or the selected core disappearing before it
+starts — the launch stops with an error. The launcher does not try the next
+core.
+
+An unavailable or no-longer-listed saved choice falls through to steps 2–4
+and is kept, not erased, so it applies again once the core is back. Cores a
+pak appends through `system_extensions[].add_alternate_cores` follow the same
+rule.
+
+This adds no field, schema, or fixture. Leaf releases before the rule may
+launch an installed `type: "path"` alternate ahead of a `retroarch` default.
+A pak that relies on its `default_core` starting first sets
+`min_leaf_version` to the first Leaf release that implements this rule.
+
 ### `provides.cores[]`
 
 | Field | Required | Rule | Reason |
