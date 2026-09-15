@@ -140,7 +140,7 @@ Paths below are relative to the top-level folder. Names are compared
 | Rule | Reason |
 | --- | --- |
 | Every file and directory entry is on the allowlist. | `theme-unknown-file` |
-| `<ID>` matches `^[A-Z0-9_]{2,32}$`: a system code the catalog knows, or one a content pak adds. The one exception is `_apps`, exactly in lowercase, which names the Apps tile and is allowed only as an icon: `grid/icons/_apps.png` and `coverflow/icons/_apps.png`. | `theme-system-id-invalid` |
+| `<ID>` matches `^[A-Z0-9_]{2,32}$`: a system code the catalog knows, or one a content pak adds. The one exception is `_apps`, exactly in lowercase, which names the Apps tile and is allowed as its icon and its Grid label: `grid/icons/_apps.png`, `coverflow/icons/_apps.png` and `grid/labels/_apps.png`. The Apps tile has no wordmark. | `theme-system-id-invalid` |
 | `<ID>` is not `_default` in any letter case. `_default` is Leaf's final fallback, not a tile, and is never themed. This reason replaces `theme-system-id-invalid` for that name. | `theme-reserved-system-id` |
 | At most one wallpaper per folder: the root and `grid/` may each hold one of the three names. | `theme-multiple-wallpapers` |
 | `theme.json` is present. | `theme-missing-manifest` |

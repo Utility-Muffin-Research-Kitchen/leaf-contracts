@@ -322,6 +322,8 @@ def run_image_variants() -> int:
          ["theme-image-dimensions"], []),
         ("grid/icons/_apps.png", gen.png(512, 512), [], []),
         ("coverflow/icons/_apps.png", gen.png(512, 512), [], []),
+        ("grid/labels/_apps.png", gen.png(512, 512), [], []),
+        ("grid/labels/_apps.png", gen.png(1025, 512), ["theme-image-dimensions"], []),
         ("wallpaper.png", gen.png(2048, 2048), [], []),
         ("wallpaper.png", gen.png(2049, 720), ["theme-image-dimensions"], []),
         ("grid/wallpaper.jpg", gen.jpeg(2048, 2048), [], []),
@@ -440,9 +442,14 @@ def run_archive_variants() -> int:
         data = gen.jpeg(960, 720) if rel.endswith("wallpaper.png") else gen.png(512, 512)
         check(f"launcher never draws {rel}", gen.theme_zip(root, files, extra=[
             gen.zip_entry(f"{root}/{rel}", data)]), ["theme-unknown-file"])
-    check("_apps is a tile only", gen.theme_zip(root, files, extra=[
+    check("_apps has no wordmark", gen.theme_zip(root, files, extra=[
         gen.zip_entry(f"{root}/grid/wordmarks/_apps.png", gen.png(400, 100))]),
         ["theme-system-id-invalid"])
+    check("_apps has no color wordmark", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/grid/wordmarks/_apps.color.png", gen.png(400, 100))]),
+        ["theme-system-id-invalid"])
+    check("_APPS is not the Apps tile label", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/grid/labels/_APPS.png", gen.png(512, 512))]), [])
     check("_APPS is not the Apps tile", gen.theme_zip(root, files, extra=[
         gen.zip_entry(f"{root}/grid/icons/_APPS.png", gen.png(512, 512))]), [])
     check("coverflow labels folder", gen.theme_zip(root, files, extra=[

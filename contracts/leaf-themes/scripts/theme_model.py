@@ -116,8 +116,11 @@ VIEWS = ("grid", "coverflow")
 VIEW_ART = {"grid": ("icons", "labels", "wordmarks"), "coverflow": ("icons",)}
 WALLPAPER_VIEWS = ("grid",)
 WALLPAPER_NAMES = ("wallpaper.png", "wallpaper.jpg", "wallpaper.jpeg")
-# The launcher looks up the Apps tile as _apps, next to the system codes.
+# The launcher looks up the Apps tile as _apps, next to the system codes. It
+# draws an icon for it in both views and a label over it in Grid; Apps has no
+# wordmark.
 APPS_TILE_ID = "_apps"
+APPS_TILE_ART = (("grid", "icons"), ("grid", "labels"), ("coverflow", "icons"))
 
 ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,39}")
 SYSTEM_ID_RE = re.compile(r"[A-Z0-9_]{2,32}")
@@ -498,7 +501,7 @@ def _classify(rel: str, is_dir: bool):
             return "theme-unknown-file"
         if stem.casefold() == "_default":
             return "theme-reserved-system-id"
-        if stem == APPS_TILE_ID and parts[1] == "icons":
+        if stem == APPS_TILE_ID and (parts[0], parts[1]) in APPS_TILE_ART:
             return ("art", parts[0], parts[1], stem)
         if not SYSTEM_ID_RE.fullmatch(stem):
             return "theme-system-id-invalid"
