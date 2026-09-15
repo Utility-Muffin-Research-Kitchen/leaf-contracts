@@ -275,6 +275,10 @@ def run_manifest_parse_variants() -> int:
         ("NaN", gen.manifest_bytes(gen.manifest(root))
          .replace(b'"schema": 1,', b'"schema": 1, "grid": {"cols": NaN, "rows": 2},')),
         ("empty", b""),
+        ("top-level array", b'["not", "an", "object"]\n'),
+        ("top-level string", b'"theme"\n'),
+        ("top-level number", b"1\n"),
+        ("top-level null", b"null\n"),
     ]
     for label, data in cases:
         files = gen.base_files(root)
