@@ -297,18 +297,16 @@ def valid_fixtures():
         "grid/wallpaper.png": png(2048, 1536),
         "grid/icons/FC.png": png(512, 512),
         "grid/icons/GBA.png": png(512, 512),
+        "grid/icons/_apps.png": png(512, 512),
         "grid/labels/FC.png": png(512, 512),
         "grid/wordmarks/FC.png": png(400, 100),
         "grid/wordmarks/FC.color.png": png(400, 100),
-        "coverflow/wallpaper.jpeg": jpeg(1280, 960),
         "coverflow/icons/FC.png": png(512, 512),
-        "coverflow/labels/MD.png": png(1024, 1024),
-        "coverflow/wordmarks/GBA.png": png(1024, 256),
-        "coverflow/wordmarks/GBA.color.png": png(1, 1),
+        "coverflow/icons/MD.png": png(512, 512),
     }
     yield ("full", theme_zip("full", full, method=8, directories=True), [], [],
-           "every allowlisted file, both views, deflated, with directory entries; "
-           "wallpapers at the 2048 px edge and art at the 1024 px edge")
+           "every allowlisted file kind, both views, the Apps tile, deflated, with "
+           "directory entries; wallpaper at the 2048 px edge")
 
     files = base_files("off-size-icon")
     files["grid/icons/GBA.png"] = png(256, 256)
@@ -467,6 +465,20 @@ def invalid_fixtures():
                  status_style="sepia")
 
 
+# Built in memory when the checks run instead of committed: a 10 MiB file in the
+# repository is not worth keeping for one size rule.
+IN_MEMORY = {"invalid/archive-too-large.zip"}
+
+
+def fixture_bytes(rel: str) -> bytes:
+    group, name = rel.split("/", 1)
+    source = valid_fixtures() if group == "valid" else invalid_fixtures()
+    for fixture_name, archive, _reasons, _warnings, _note in source:
+        if f"{fixture_name}.zip" == name:
+            return archive
+    raise KeyError(rel)
+
+
 def main() -> None:
     if os.path.exists(FIXTURES):
         shutil.rmtree(FIXTURES)
@@ -475,9 +487,13 @@ def main() -> None:
         os.makedirs(os.path.join(FIXTURES, group))
         for name, archive, reasons, warnings, note in fixtures:
             rel = f"{group}/{name}.zip"
-            with open(os.path.join(FIXTURES, rel), "wb") as handle:
-                handle.write(archive)
-            expectations.append(dict(file=rel, reasons=reasons, warnings=warnings, note=note))
+            entry = dict(file=rel, reasons=reasons, warnings=warnings, note=note)
+            if rel in IN_MEMORY:
+                entry["in_memory"] = True
+            else:
+                with open(os.path.join(FIXTURES, rel), "wb") as handle:
+                    handle.write(archive)
+            expectations.append(entry)
     expectations.sort(key=lambda e: e["file"])
     with open(os.path.join(FIXTURES, "expect.json"), "w") as handle:
         json.dump({"fixtures": expectations}, handle, indent=2, ensure_ascii=False)

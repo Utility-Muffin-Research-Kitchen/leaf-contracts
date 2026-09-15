@@ -110,8 +110,14 @@ AUTHOR_MAX_CHARS, AUTHOR_MAX_BYTES = 60, 63
 DESCRIPTION_MAX_CHARS = 300
 
 VIEWS = ("grid", "coverflow")
-ART_KINDS = ("icons", "labels", "wordmarks")
+# Only what the launcher draws: Grid reads icons, labels and wordmarks and has
+# its own wallpaper; Cover Flow reads icons only. Adding more later is safe,
+# because min_leaf_version gates themes that use it.
+VIEW_ART = {"grid": ("icons", "labels", "wordmarks"), "coverflow": ("icons",)}
+WALLPAPER_VIEWS = ("grid",)
 WALLPAPER_NAMES = ("wallpaper.png", "wallpaper.jpg", "wallpaper.jpeg")
+# The launcher looks up the Apps tile as _apps, next to the system codes.
+APPS_TILE_ID = "_apps"
 
 ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,39}")
 SYSTEM_ID_RE = re.compile(r"[A-Z0-9_]{2,32}")
@@ -469,7 +475,7 @@ def _classify(rel: str, is_dir: bool):
     """
     if is_dir:
         rel = rel.rstrip("/")
-        allowed = {""} | set(VIEWS) | {f"{v}/{k}" for v in VIEWS for k in ART_KINDS}
+        allowed = {""} | set(VIEWS) | {f"{v}/{k}" for v in VIEWS for k in VIEW_ART[v]}
         return ("dir", None, None, None) if rel in allowed else "theme-unknown-file"
     if rel == "theme.json":
         return ("manifest", None, None, None)
@@ -480,9 +486,9 @@ def _classify(rel: str, is_dir: bool):
     parts = rel.split("/")
     if len(parts) == 1 and rel in WALLPAPER_NAMES:
         return ("wallpaper", None, None, None)
-    if len(parts) == 2 and parts[0] in VIEWS and parts[1] in WALLPAPER_NAMES:
+    if len(parts) == 2 and parts[0] in WALLPAPER_VIEWS and parts[1] in WALLPAPER_NAMES:
         return ("wallpaper", parts[0], None, None)
-    if len(parts) == 3 and parts[0] in VIEWS and parts[1] in ART_KINDS:
+    if len(parts) == 3 and parts[0] in VIEWS and parts[1] in VIEW_ART[parts[0]]:
         stem = parts[2]
         if parts[1] == "wordmarks" and stem.endswith(".color.png"):
             stem = stem[:-len(".color.png")]
@@ -492,6 +498,8 @@ def _classify(rel: str, is_dir: bool):
             return "theme-unknown-file"
         if stem.casefold() == "_default":
             return "theme-reserved-system-id"
+        if stem == APPS_TILE_ID and parts[1] == "icons":
+            return ("art", parts[0], parts[1], stem)
         if not SYSTEM_ID_RE.fullmatch(stem):
             return "theme-system-id-invalid"
         return ("art", parts[0], parts[1], stem)

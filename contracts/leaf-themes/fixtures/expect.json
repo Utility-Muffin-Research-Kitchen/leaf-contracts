@@ -14,7 +14,8 @@
         "theme-archive-too-large"
       ],
       "warnings": [],
-      "note": "just over 10 MiB on disk: a stored 10 MiB LICENSE.txt, which would otherwise pass every other limit. Rejected from the file size alone"
+      "note": "just over 10 MiB on disk: a stored 10 MiB LICENSE.txt, which would otherwise pass every other limit. Rejected from the file size alone",
+      "in_memory": true
     },
     {
       "file": "invalid/author-invalid.zip",
@@ -332,7 +333,7 @@
       "file": "valid/full.zip",
       "reasons": [],
       "warnings": [],
-      "note": "every allowlisted file, both views, deflated, with directory entries; wallpapers at the 2048 px edge and art at the 1024 px edge"
+      "note": "every allowlisted file kind, both views, the Apps tile, deflated, with directory entries; wallpaper at the 2048 px edge"
     },
     {
       "file": "valid/off-size-icon.zip",

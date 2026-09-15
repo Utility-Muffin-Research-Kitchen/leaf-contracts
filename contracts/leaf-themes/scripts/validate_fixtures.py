@@ -87,7 +87,7 @@ def manifest_of(path: str):
 def run_fixtures() -> None:
     fixtures_dir = os.path.join(ROOT, "fixtures")
     document = load_json(os.path.join(fixtures_dir, "expect.json"))
-    expected_files = {e["file"] for e in document["fixtures"]}
+    expected_files = {e["file"] for e in document["fixtures"] if not e.get("in_memory")}
     on_disk = {f"{group}/{name}" for group in ("valid", "invalid")
                for name in os.listdir(os.path.join(fixtures_dir, group))}
     if expected_files != on_disk:
@@ -105,7 +105,16 @@ def run_fixtures() -> None:
         if rel.startswith("invalid/") and len(reasons) != 1:
             fail(f"{rel}: an invalid fixture must fail for exactly one reason")
             continue
-        got = theme_model.validate_archive(path)
+        if case.get("in_memory"):
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as handle:
+                handle.write(gen.fixture_bytes(rel))
+                path = handle.name
+        try:
+            got = theme_model.validate_archive(path)
+            obj = manifest_of(path)
+        finally:
+            if case.get("in_memory"):
+                os.unlink(path)
         if got != (sorted(reasons), sorted(warnings)):
             fail(f"{rel}: got reasons {got[0]} warnings {got[1]}, expected "
                  f"{sorted(reasons)} {sorted(warnings)}")
@@ -115,7 +124,6 @@ def run_fixtures() -> None:
         if not reasons:
             warned.update(warnings)
 
-        obj = manifest_of(path)
         if obj is not None:
             schema_ok, schema_err = minischema.is_valid(obj, SCHEMA)
             want_ok = not (set(reasons) & SCHEMA_REASONS)
@@ -290,14 +298,16 @@ def run_image_variants() -> int:
         ("coverflow/icons/GBA.png", gen.png(512, 256), [], ["theme-icon-off-size"]),
         ("grid/labels/GBA.png", gen.png(1024, 1), [], []),
         ("grid/wordmarks/GBA.png", gen.png(1025, 100), ["theme-image-dimensions"], []),
-        ("coverflow/wordmarks/GBA.color.png", gen.png(100, 1025),
+        ("grid/wordmarks/GBA.color.png", gen.png(100, 1025),
          ["theme-image-dimensions"], []),
+        ("grid/icons/_apps.png", gen.png(512, 512), [], []),
+        ("coverflow/icons/_apps.png", gen.png(512, 512), [], []),
         ("wallpaper.png", gen.png(2048, 2048), [], []),
         ("wallpaper.png", gen.png(2049, 720), ["theme-image-dimensions"], []),
         ("grid/wallpaper.jpg", gen.jpeg(2048, 2048), [], []),
         ("grid/wallpaper.jpg", gen.jpeg(960, 2049), ["theme-image-dimensions"], []),
-        ("coverflow/wallpaper.jpeg", gen.jpeg(960, 720, sof=0xC1), [], []),
-        ("coverflow/wallpaper.jpeg", gen.jpeg(960, 720, sof=0xC2), [], []),
+        ("grid/wallpaper.jpeg", gen.jpeg(960, 720, sof=0xC1), [], []),
+        ("grid/wallpaper.jpeg", gen.jpeg(960, 720, sof=0xC2), [], []),
         ("wallpaper.jpeg", gen.jpeg(960, 720, sof=0xC0, components=3), [], []),
         ("wallpaper.jpeg", gen.jpeg(960, 720, sof=0xC3), ["theme-unsupported-image"], []),
         ("wallpaper.jpeg", gen.jpeg(960, 720, sof=0xC9), ["theme-unsupported-image"], []),
@@ -403,8 +413,20 @@ def run_archive_variants() -> int:
         gen.zip_entry(f"{root}/grid/icons/{'A' * 33}.png", gen.png(512, 512))]),
         ["theme-system-id-invalid"])
     check("uppercase _DEFAULT", gen.theme_zip(root, files, extra=[
-        gen.zip_entry(f"{root}/coverflow/labels/_DEFAULT.png", gen.png(512, 512))]),
+        gen.zip_entry(f"{root}/grid/labels/_DEFAULT.png", gen.png(512, 512))]),
         ["theme-reserved-system-id"])
+    for rel in ("coverflow/wallpaper.png", "coverflow/labels/FC.png",
+                "coverflow/wordmarks/FC.png", "coverflow/wordmarks/FC.color.png"):
+        data = gen.jpeg(960, 720) if rel.endswith("wallpaper.png") else gen.png(512, 512)
+        check(f"launcher never draws {rel}", gen.theme_zip(root, files, extra=[
+            gen.zip_entry(f"{root}/{rel}", data)]), ["theme-unknown-file"])
+    check("_apps is a tile only", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/grid/wordmarks/_apps.png", gen.png(400, 100))]),
+        ["theme-system-id-invalid"])
+    check("_APPS is not the Apps tile", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/grid/icons/_APPS.png", gen.png(512, 512))]), [])
+    check("coverflow labels folder", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/coverflow/labels/")]), ["theme-unknown-file"])
     check("two root wallpapers", gen.theme_zip(root, files, extra=[
         gen.zip_entry(f"{root}/wallpaper.jpg", gen.jpeg(960, 720)),
         gen.zip_entry(f"{root}/wallpaper.jpeg", gen.jpeg(960, 720))]),

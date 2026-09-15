@@ -73,9 +73,11 @@ The images inside are real, decodable files built from their dimensions:
 1-bit grayscale PNGs and baseline grayscale JPEGs, a few hundred bytes to a few
 kilobytes each.
 
-Two fixtures are large on purpose. `invalid/archive-too-large.zip` is just
-over 10 MiB, and `invalid/uncompressed-too-large.zip` declares 25 MiB. Both
-are runs of one byte value, so git stores them in a few kilobytes.
+`invalid/archive-too-large.zip` is built in memory each time the checks run
+instead of committed: it has to be just over 10 MiB to test its rule, which is
+not worth keeping in the repository. `expect.json` marks it `"in_memory": true`.
+`invalid/uncompressed-too-large.zip` declares 25 MiB but is a run of one byte
+value, so it stays small.
 
 ## Running it
 

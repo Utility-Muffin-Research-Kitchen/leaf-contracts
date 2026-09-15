@@ -50,8 +50,14 @@ in this document; any other file is refused rather than ignored.
     labels/<ID>.png                optional, full-tile overlays
     wordmarks/<ID>.png             optional, system wordmark, tinted
     wordmarks/<ID>.color.png       optional, system wordmark, untinted
-  coverflow/                       optional, the same shape as grid/, for Cover Flow
+  coverflow/
+    icons/<ID>.png                 optional, Cover Flow system cards
 ```
+
+The allowlist holds only what the launcher draws today. Cover Flow reads icons
+only, so it has no wallpaper, labels or wordmarks here. Adding a file kind later
+is not a breaking change: a theme that uses it declares a `min_leaf_version` new
+enough to draw it.
 
 Directory entries are optional. When present, a directory entry must name one
 of the folders above.
@@ -125,20 +131,18 @@ Paths below are relative to the top-level folder. Names are compared
 | `preview.png` | PNG | exactly 960 x 720 |
 | `LICENSE.txt` | not inspected | - |
 | `wallpaper.png`, `wallpaper.jpg`, `wallpaper.jpeg` | PNG for `.png`, JPEG otherwise | each 1-2048 |
-| `<view>/wallpaper.png`, `.jpg`, `.jpeg` | PNG for `.png`, JPEG otherwise | each 1-2048 |
-| `<view>/icons/<ID>.png` | PNG | each 1-1024 |
-| `<view>/labels/<ID>.png` | PNG | each 1-1024 |
-| `<view>/wordmarks/<ID>.png` | PNG | each 1-1024 |
-| `<view>/wordmarks/<ID>.color.png` | PNG | each 1-1024 |
-
-`<view>` is `grid` or `coverflow`.
+| `grid/wallpaper.png`, `.jpg`, `.jpeg` | PNG for `.png`, JPEG otherwise | each 1-2048 |
+| `grid/icons/<ID>.png`, `coverflow/icons/<ID>.png` | PNG | each 1-1024 |
+| `grid/labels/<ID>.png` | PNG | each 1-1024 |
+| `grid/wordmarks/<ID>.png` | PNG | each 1-1024 |
+| `grid/wordmarks/<ID>.color.png` | PNG | each 1-1024 |
 
 | Rule | Reason |
 | --- | --- |
 | Every file and directory entry is on the allowlist. | `theme-unknown-file` |
-| `<ID>` matches `^[A-Z0-9_]{2,32}$`: a system code the catalog knows, or one a content pak adds. | `theme-system-id-invalid` |
+| `<ID>` matches `^[A-Z0-9_]{2,32}$`: a system code the catalog knows, or one a content pak adds. The one exception is `_apps`, exactly in lowercase, which names the Apps tile and is allowed for icons only. | `theme-system-id-invalid` |
 | `<ID>` is not `_default` in any letter case. `_default` is Leaf's final fallback, not a tile, and is never themed. This reason replaces `theme-system-id-invalid` for that name. | `theme-reserved-system-id` |
-| At most one wallpaper per folder: the root, `grid/`, and `coverflow/` may each hold one of the three names. | `theme-multiple-wallpapers` |
+| At most one wallpaper per folder: the root and `grid/` may each hold one of the three names. | `theme-multiple-wallpapers` |
 | `theme.json` is present. | `theme-missing-manifest` |
 | `preview.png` is present. | `theme-missing-preview` |
 
@@ -248,7 +252,7 @@ submitter and a reviewer.
 
 | Condition | Warning |
 | --- | --- |
-| An icon (`<view>/icons/<ID>.png`) with valid dimensions that are not 512 x 512. The launcher draws it contain-fit. | `theme-icon-off-size` |
+| An icon (`grid/icons/<ID>.png` or `coverflow/icons/<ID>.png`) with valid dimensions that are not 512 x 512. The launcher draws it contain-fit. | `theme-icon-off-size` |
 | No wallpaper, icon, label, or wordmark at all: a colors-only theme. | `theme-no-art` |
 
 ### Outside THEME-1
@@ -266,8 +270,10 @@ package, and a package validator cannot check them:
 
 ## Change procedure
 
-`theme-v1` freezes when the first theme is published to the Pak Rat `themes`
-lane. Until then:
+`theme-v1` freezes when Leaf officially announces themes in Pak Rat. Until
+then the contract is under active development and may change without a version
+bump, and any theme published before the announcement can be withdrawn or
+removed so development and testing can continue. Until the freeze:
 
 1. Change this file first. It is the normative text.
 2. Update the schema, the fixture generator, and the reference validator in
