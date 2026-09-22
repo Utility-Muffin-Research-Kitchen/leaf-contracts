@@ -461,6 +461,32 @@ def run_archive_variants() -> int:
     check("root and grid wallpaper", gen.theme_zip(root, files, extra=[
         gen.zip_entry(f"{root}/wallpaper.jpg", gen.jpeg(960, 720)),
         gen.zip_entry(f"{root}/grid/wallpaper.jpg", gen.jpeg(960, 720))]), [])
+    # icons/ at the root is the set both views share: flat, icons only, and
+    # the same system id rules as a view's icons/ folder.
+    check("shared icon", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/SNES.png", gen.png(512, 512))]), [])
+    check("shared Apps icon", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/_apps.png", gen.png(512, 512))]), [])
+    check("shared icons folder entry", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/")]), [])
+    check("shared icon off-size", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/SNES.png", gen.png(256, 256))]),
+        [], ["theme-icon-off-size"])
+    check("shared _default", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/_default.png", gen.png(512, 512))]),
+        ["theme-reserved-system-id"])
+    check("shared lowercase id", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/fc.png", gen.png(512, 512))]),
+        ["theme-system-id-invalid"])
+    check("shared folder is flat", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/grid/FC.png", gen.png(512, 512))]),
+        ["theme-unknown-file"])
+    check("shared icons are PNG only", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/FC.jpg", gen.jpeg(512, 512))]),
+        ["theme-unknown-file"])
+    check("no shared color wordmark", gen.theme_zip(root, files, extra=[
+        gen.zip_entry(f"{root}/icons/FC.color.png", gen.png(512, 512))]),
+        ["theme-system-id-invalid"])
     check("unknown schema skips id checks",
           gen.theme_zip("other", gen.base_files(root, schema=2)), ["theme-unknown-schema"])
     return count

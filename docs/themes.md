@@ -44,6 +44,7 @@ in this document; any other file is refused rather than ignored.
   preview.png                      required, the store screenshot
   LICENSE.txt                      optional, full license text
   wallpaper.png|jpg|jpeg           optional, the theme-wide wallpaper
+  icons/<ID>.png                   optional, system icons both views use
   grid/
     wallpaper.png|jpg|jpeg         optional, overrides the theme-wide wallpaper in Grid View
     icons/<ID>.png                 optional, system tiles
@@ -58,6 +59,14 @@ The allowlist holds only what the launcher draws today. Cover Flow reads icons
 only, so it has no wallpaper, labels or wordmarks here. Adding a file kind later
 is not a breaking change: a theme that uses it declares a `min_leaf_version` new
 enough to draw it.
+
+`icons/` at the root is one icon set for both views, so a theme whose Grid and
+Cover Flow art are the same ships it once. For each system, a view looks in its
+own `icons/` folder first, then in the shared one, then draws what it would
+without the theme. A theme can therefore share most icons and still override a
+few in one view. Only icons are shared: labels and wordmarks stay under `grid/`.
+Test builds of Leaf 0.12.0 up to beta 4 predate this folder and refuse a theme
+that contains it; 0.12.0 itself and every later release accept it.
 
 Directory entries are optional. When present, a directory entry must name one
 of the folders above.
@@ -132,7 +141,7 @@ Paths below are relative to the top-level folder. Names are compared
 | `LICENSE.txt` | not inspected | - |
 | `wallpaper.png`, `wallpaper.jpg`, `wallpaper.jpeg` | PNG for `.png`, JPEG otherwise | each 1-2048 |
 | `grid/wallpaper.png`, `.jpg`, `.jpeg` | PNG for `.png`, JPEG otherwise | each 1-2048 |
-| `grid/icons/<ID>.png`, `coverflow/icons/<ID>.png` | PNG | each 1-1024 |
+| `icons/<ID>.png`, `grid/icons/<ID>.png`, `coverflow/icons/<ID>.png` | PNG | each 1-1024 |
 | `grid/labels/<ID>.png` | PNG | each 1-1024 |
 | `grid/wordmarks/<ID>.png` | PNG | each 1-1024 |
 | `grid/wordmarks/<ID>.color.png` | PNG | each 1-1024 |
@@ -140,7 +149,7 @@ Paths below are relative to the top-level folder. Names are compared
 | Rule | Reason |
 | --- | --- |
 | Every file and directory entry is on the allowlist. | `theme-unknown-file` |
-| `<ID>` matches `^[A-Z0-9_]{2,32}$`: a system code the catalog knows, or one a content pak adds. The one exception is `_apps`, exactly in lowercase, which names the Apps tile and is allowed as its icon and its Grid label: `grid/icons/_apps.png`, `coverflow/icons/_apps.png` and `grid/labels/_apps.png`. The Apps tile has no wordmark. | `theme-system-id-invalid` |
+| `<ID>` matches `^[A-Z0-9_]{2,32}$`: a system code the catalog knows, or one a content pak adds. The one exception is `_apps`, exactly in lowercase, which names the Apps tile and is allowed as its icon and its Grid label: `icons/_apps.png`, `grid/icons/_apps.png`, `coverflow/icons/_apps.png` and `grid/labels/_apps.png`. The Apps tile has no wordmark. | `theme-system-id-invalid` |
 | `<ID>` is not `_default` in any letter case. `_default` is Leaf's final fallback, not a tile, and is never themed. This reason replaces `theme-system-id-invalid` for that name. | `theme-reserved-system-id` |
 | At most one wallpaper per folder: the root and `grid/` may each hold one of the three names. | `theme-multiple-wallpapers` |
 | `theme.json` is present. | `theme-missing-manifest` |
@@ -252,7 +261,7 @@ submitter and a reviewer.
 
 | Condition | Warning |
 | --- | --- |
-| An icon (`grid/icons/<ID>.png` or `coverflow/icons/<ID>.png`) with valid dimensions that are not 512 x 512. The launcher draws it contain-fit. | `theme-icon-off-size` |
+| An icon (`icons/<ID>.png`, `grid/icons/<ID>.png` or `coverflow/icons/<ID>.png`) with valid dimensions that are not 512 x 512. The launcher draws it contain-fit. | `theme-icon-off-size` |
 | No wallpaper, icon, label, or wordmark at all: a colors-only theme. | `theme-no-art` |
 
 ### Outside THEME-1
