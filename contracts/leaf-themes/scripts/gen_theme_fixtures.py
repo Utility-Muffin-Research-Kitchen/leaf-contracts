@@ -308,6 +308,17 @@ def valid_fixtures():
            "every allowlisted file kind, both views, the Apps tile, deflated, with "
            "directory entries; wallpaper at the 2048 px edge")
 
+    files = base_files("shared-icons")
+    files.update({
+        "icons/FC.png": png(512, 512),
+        "icons/MD.png": png(512, 512),
+        "icons/_apps.png": png(512, 512),
+        "coverflow/icons/FC.png": png(512, 512),
+    })
+    yield ("shared-icons", theme_zip("shared-icons", files, directories=True), [], [],
+           "one icon set at the root that both views read, plus a Cover Flow override "
+           "for FC, which wins over the shared FC in that view")
+
     files = base_files("off-size-icon")
     files["grid/icons/GBA.png"] = png(256, 256)
     yield ("off-size-icon", theme_zip("off-size-icon", files), [], ["theme-icon-off-size"],

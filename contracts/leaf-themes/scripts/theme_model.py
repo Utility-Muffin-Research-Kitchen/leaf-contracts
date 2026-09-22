@@ -121,6 +121,9 @@ WALLPAPER_NAMES = ("wallpaper.png", "wallpaper.jpg", "wallpaper.jpeg")
 # wordmark.
 APPS_TILE_ID = "_apps"
 APPS_TILE_ART = (("grid", "icons"), ("grid", "labels"), ("coverflow", "icons"))
+# icons/<ID>.png at the root: one icon set both views read. A view's own
+# icons/ folder wins per system; this is where either view looks next.
+SHARED_ICONS = "icons"
 
 ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,39}")
 SYSTEM_ID_RE = re.compile(r"[A-Z0-9_]{2,32}")
@@ -478,7 +481,8 @@ def _classify(rel: str, is_dir: bool):
     """
     if is_dir:
         rel = rel.rstrip("/")
-        allowed = {""} | set(VIEWS) | {f"{v}/{k}" for v in VIEWS for k in VIEW_ART[v]}
+        allowed = {"", SHARED_ICONS} | set(VIEWS) | \
+            {f"{v}/{k}" for v in VIEWS for k in VIEW_ART[v]}
         return ("dir", None, None, None) if rel in allowed else "theme-unknown-file"
     if rel == "theme.json":
         return ("manifest", None, None, None)
@@ -491,22 +495,31 @@ def _classify(rel: str, is_dir: bool):
         return ("wallpaper", None, None, None)
     if len(parts) == 2 and parts[0] in WALLPAPER_VIEWS and parts[1] in WALLPAPER_NAMES:
         return ("wallpaper", parts[0], None, None)
+    if len(parts) == 2 and parts[0] == SHARED_ICONS:
+        return _classify_art(None, SHARED_ICONS, parts[1])
     if len(parts) == 3 and parts[0] in VIEWS and parts[1] in VIEW_ART[parts[0]]:
-        stem = parts[2]
-        if parts[1] == "wordmarks" and stem.endswith(".color.png"):
-            stem = stem[:-len(".color.png")]
-        elif stem.endswith(".png"):
-            stem = stem[:-len(".png")]
-        else:
-            return "theme-unknown-file"
-        if stem.casefold() == "_default":
-            return "theme-reserved-system-id"
-        if stem == APPS_TILE_ID and (parts[0], parts[1]) in APPS_TILE_ART:
-            return ("art", parts[0], parts[1], stem)
-        if not SYSTEM_ID_RE.fullmatch(stem):
-            return "theme-system-id-invalid"
-        return ("art", parts[0], parts[1], stem)
+        return _classify_art(parts[0], parts[1], parts[2])
     return "theme-unknown-file"
+
+
+def _classify_art(view, kind: str, name: str):
+    """(slot, view, kind, system id) for one art file, or a reason. view is
+    None for the shared icons/ folder, which both views read."""
+    stem = name
+    if kind == "wordmarks" and stem.endswith(".color.png"):
+        stem = stem[:-len(".color.png")]
+    elif stem.endswith(".png"):
+        stem = stem[:-len(".png")]
+    else:
+        return "theme-unknown-file"
+    if stem.casefold() == "_default":
+        return "theme-reserved-system-id"
+    # Every view draws an Apps icon, so the shared set may carry one too.
+    if stem == APPS_TILE_ID and (view is None or (view, kind) in APPS_TILE_ART):
+        return ("art", view, kind, stem)
+    if not SYSTEM_ID_RE.fullmatch(stem):
+        return "theme-system-id-invalid"
+    return ("art", view, kind, stem)
 
 
 # --------------------------------------------------------------------------

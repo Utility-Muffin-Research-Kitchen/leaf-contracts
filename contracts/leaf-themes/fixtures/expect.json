@@ -342,6 +342,12 @@
         "theme-icon-off-size"
       ],
       "note": "a 256x256 icon is accepted and drawn contain-fit, with a warning"
+    },
+    {
+      "file": "valid/shared-icons.zip",
+      "reasons": [],
+      "warnings": [],
+      "note": "one icon set at the root that both views read, plus a Cover Flow override for FC, which wins over the shared FC in that view"
     }
   ]
 }
