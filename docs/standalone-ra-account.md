@@ -170,8 +170,9 @@ I have not applied yet".
 
 ## Rejection reasons
 
-Every rule has exactly one fixture whose `reason` names it. A snapshot can
-violate several; the fixture names the one it exists to prove.
+Every rule has at least one fixture whose `reason` names it, and the
+validator fails if this table and the fixture reasons differ. A snapshot can
+violate several rules; the fixture names the one it exists to prove.
 
 | Reason | Rule |
 | --- | --- |
@@ -192,10 +193,10 @@ violate several; the fixture names the one it exists to prove.
 | `revision-unexpected` | `REVISION` present on `never-configured`, `invalid` or `unreadable` |
 | `stale-retroarch-credentials` | `JAWAKA_CHEEVOS_USERNAME` or `JAWAKA_CHEEVOS_PASSWORD` present in a standalone child |
 
-`revision-invalid` has two fixtures, `invalid-handoff-revision-not-positive`
-(`0`) and `invalid-handoff-revision-non-numeric` (`+7`), because a zero
-check and a digit check are different code paths in every consumer seen so
-far, and each has been wrong on its own.
+Two rules have two fixtures, because each covers two code paths a
+consumer can get wrong independently: `unsupported-version` (a partial
+snapshot with no `VERSION`, and `VERSION=2`) and `revision-invalid` (`0`,
+and the signed `+7`).
 
 ## Change procedure
 
@@ -205,7 +206,8 @@ is published. Until then:
 1. Change this file first.
 2. Update `fixtures.json` and, if a rule changed, `classify_ra_account_env`,
    then run `python3 contracts/leaf-services/scripts/validate_fixtures.py`.
-3. A new rejection rule gets exactly one invalid fixture naming its reason.
+3. A new rejection rule gets an invalid fixture naming its reason and a row
+   in the table above.
 4. Every consumer pins a commit and a sha256 of `fixtures.json`; a change
    here is a reviewed pin bump in each of them.
 5. After the freeze, a breaking change is `standalone-ra-account-v2` with
