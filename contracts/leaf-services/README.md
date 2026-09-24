@@ -17,6 +17,7 @@ leaf-services/
 ├── game-coordination/                 LIFE-1 subscription accept/reject fixtures
 ├── source-paths-v2/                   PATH-2 env-var fixtures
 ├── standalone-ra-account-v1/          standalone-ra-account-v1 env-var fixtures
+│                                      (normative text: docs/standalone-ra-account.md)
 ├── transactions/                      P1/TXN-1/PKG-1 ordering + floor/real pairs
 ├── wire-fixtures/                     byte-level CTL-1/LIFE-1 frame fixtures
 └── scripts/                           generators + validate_fixtures.py

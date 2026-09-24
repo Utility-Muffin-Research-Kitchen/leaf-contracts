@@ -1,5 +1,5 @@
 {
-  "$comment": "standalone-ra-account-v1 fixtures. Each case is the resolved child-only environment snapshot a producer (the Jawaka launcher daemon) exports to one authorized standalone emulator process after fork(), plus how a consumer (an emulator's native account adapter) must classify it. validate_fixtures.py classifies every case independently and checks: the handoff carries exactly the five contract variables below; credentials are present only for the configured state and respect the byte-level UTF-8 limits; the revision is present, positive and within range exactly for configured and signed-out; and the RetroArch-specific JAWAKA_CHEEVOS_* handoff never leaks into a standalone child. Contract summary (normative): UMRK_RA_ACCOUNT_VERSION is exactly '1' when a handoff is produced; its total absence means no supported handoff and the consumer keeps native unmanaged behavior. UMRK_RA_ACCOUNT_STATE is one of configured, never-configured, signed-out, invalid, unreadable. UMRK_RA_ACCOUNT_USERNAME (1..63 UTF-8 bytes) and UMRK_RA_ACCOUNT_PASSWORD (1..127 UTF-8 bytes) are present only for state configured; quotes, spaces, shell metacharacters, commas and semicolons are valid data, embedded NUL/CR/LF are not. UMRK_RA_ACCOUNT_REVISION is a positive decimal integer in 1..2^62, present only for configured and signed-out, monotonically incremented by the producer inside one checked write transaction on every successful save or clear; a sign-out clears the credentials but retains the new revision. A producer never fabricates a revision after a read failure, never emits a malformed revision, and fails the save rather than wrapping on overflow. A consumer copies, validates and unsets the snapshot promptly; a missing, malformed or mismatched handoff never revives a previously accepted account and never silently becomes an unmanaged session, and the invalid/unreadable states are not sign-out and must not erase durable data.",
+  "$comment": "standalone-ra-account-v1 fixtures. Each case is the resolved child-only environment snapshot a producer (the Jawaka launcher daemon) exports to one authorized standalone emulator process after fork(), plus how a consumer (an emulator's native account adapter) must classify it. validate_fixtures.py classifies every case independently. The normative text is docs/standalone-ra-account.md; if this file and that page disagree, the page wins.",
   "revision_ceiling": "4611686018427387904",
   "handoff_vars": [
     "UMRK_RA_ACCOUNT_VERSION",
@@ -267,6 +267,19 @@
         "UMRK_RA_ACCOUNT_VERSION": "1",
         "UMRK_RA_ACCOUNT_STATE": "signed-out",
         "UMRK_RA_ACCOUNT_REVISION": "0"
+      }
+    },
+    {
+      "name": "invalid-handoff-revision-non-numeric",
+      "kind": "invalid-handoff",
+      "reason": "revision-invalid",
+      "note": "A signed revision. strtoll, std::stoll and Python int() all accept '+7' as 7; a consumer built on one of them would accept a value the producer can never emit. A revision is one or more ASCII digits and nothing else: no sign, no whitespace, no decimal point.",
+      "env": {
+        "UMRK_RA_ACCOUNT_VERSION": "1",
+        "UMRK_RA_ACCOUNT_STATE": "configured",
+        "UMRK_RA_ACCOUNT_USERNAME": "player-one",
+        "UMRK_RA_ACCOUNT_PASSWORD": "correct horse",
+        "UMRK_RA_ACCOUNT_REVISION": "+7"
       }
     },
     {

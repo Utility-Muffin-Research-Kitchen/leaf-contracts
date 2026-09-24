@@ -436,6 +436,23 @@ def run_ra_account_fixtures() -> None:
         suffix = f" -> {case['reason']}" if expected_kind == "invalid-handoff" else ""
         ok(f"standalone-ra-account-v1/{case['name']}{suffix}")
 
+    # The normative page lists every rejection reason in one table; each one
+    # must be proved by a fixture, and no fixture may name an undocumented one.
+    import re
+
+    doc_path = os.path.join(os.path.dirname(os.path.dirname(ROOT)), "docs", "standalone-ra-account.md")
+    with open(doc_path, encoding="utf-8") as handle:
+        doc = handle.read()
+    section = doc.split("## Rejection reasons", 1)[1].split("\n## ", 1)[0]
+    documented = set(re.findall(r"^\| `([a-z0-9-]+)` \|", section, re.MULTILINE))
+    proved = {c["reason"] for c in data["cases"] if c["kind"] == "invalid-handoff"}
+    if documented != proved:
+        fail("standalone-ra-account-v1: docs/standalone-ra-account.md reasons "
+             f"{sorted(documented - proved)} have no fixture; fixture reasons "
+             f"{sorted(proved - documented)} are undocumented")
+    else:
+        ok(f"standalone-ra-account-v1: all {len(documented)} documented reasons have a fixture")
+
 
 # ---------------------------------------------------------------------------
 # LIFE-1 subscription fixtures
