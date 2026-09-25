@@ -1,7 +1,8 @@
 # `contracts/leaf-services/`
 
 Public schemas and fixtures for `SVC-1`, `CTL-1`, `LIFE-1`, `PATH-2`,
-`PKG-1`, and `TXN-1`. This directory is the distributable contract: schemas,
+`PKG-1`, `TXN-1`, and `standalone-ra-account-v1`. This directory is the
+distributable contract: schemas,
 fixtures, and a validator that checks every fixture against its schema and,
 for invalid fixtures, against the specific rejection reason it names. No
 private workspace checkout is required to consume it.
@@ -15,6 +16,8 @@ leaf-services/
 ├── supervisor-state/                  generation-lease scenario fixtures
 ├── game-coordination/                 LIFE-1 subscription accept/reject fixtures
 ├── source-paths-v2/                   PATH-2 env-var fixtures
+├── standalone-ra-account-v1/          standalone-ra-account-v1 env-var fixtures
+│                                      (normative text: docs/standalone-ra-account.md)
 ├── transactions/                      P1/TXN-1/PKG-1 ordering + floor/real pairs
 ├── wire-fixtures/                     byte-level CTL-1/LIFE-1 frame fixtures
 └── scripts/                           generators + validate_fixtures.py
@@ -58,8 +61,9 @@ enforced — extend `minischema.py` before relying on one.
 The generator scripts (`gen_manifest_fixtures.py`, `gen_wire_fixtures.py`) are
 the source of truth for `manifests/` and `wire-fixtures/`; edit the generator,
 re-run it, and let it overwrite its output rather than hand-editing generated
-fixtures. `supervisor-state/`, `game-coordination/`, `source-paths-v2/`, and
-`transactions/` are hand-authored JSON and are edited directly.
+fixtures. `supervisor-state/`, `game-coordination/`, `source-paths-v2/`,
+`standalone-ra-account-v1/`, and `transactions/` are hand-authored JSON and
+are edited directly.
 
 ## Contract text vs. this directory
 

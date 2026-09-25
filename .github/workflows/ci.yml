@@ -19,7 +19,7 @@ jobs:
       - name: CONTENT-1 / CAT-1 / STORE-CONTENT-1
         run: python3 contracts/leaf-content/scripts/validate_fixtures.py
 
-      - name: SVC-1 / CTL-1 / LIFE-1 / PATH-2 / PKG-1 / TXN-1
+      - name: SVC-1 / CTL-1 / LIFE-1 / PATH-2 / PKG-1 / TXN-1 / standalone-ra-account-v1
         run: python3 contracts/leaf-services/scripts/validate_fixtures.py
 
       - name: THEME-1

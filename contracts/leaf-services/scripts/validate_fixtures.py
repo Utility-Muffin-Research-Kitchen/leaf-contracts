@@ -310,6 +310,151 @@ def run_path2_fixtures() -> None:
 
 
 # ---------------------------------------------------------------------------
+# standalone-ra-account-v1 fixtures
+# ---------------------------------------------------------------------------
+
+RA_ACCOUNT_STATES = ("configured", "never-configured", "signed-out", "invalid", "unreadable")
+# The revision is a positive decimal. 2^62 leaves headroom for an int64
+# consumer while staying comfortably below any wrap concern; the producer
+# fails a save that would pass it instead of emitting a wrapped value.
+RA_ACCOUNT_REVISION_MAX = 4611686018427387904  # 2**62
+RA_ACCOUNT_USERNAME_MAX_BYTES = 63
+RA_ACCOUNT_PASSWORD_MAX_BYTES = 127
+
+
+def classify_ra_account_env(env: dict[str, bytes]) -> tuple[str, set[str]]:
+    """Classify a child-only RA account handoff. Returns
+    ("unmanaged" | "valid-handoff" | "invalid-handoff", reasons).
+
+    Case variables arrive as BYTES: the limits are UTF-8 byte counts, and a
+    value that is not valid UTF-8 at all must be rejected, never decoded
+    with a lossy fallback. Byte-exact fixtures use env_b64 so malformed
+    encodings can be expressed where JSON strings cannot."""
+    v: set[str] = set()
+    prefix = "UMRK_RA_ACCOUNT_"
+
+    if "JAWAKA_CHEEVOS_USERNAME" in env or "JAWAKA_CHEEVOS_PASSWORD" in env:
+        # The RetroArch per-launch handoff has no business in a standalone
+        # child; its presence means an inherited value survived fork().
+        v.add("stale-retroarch-credentials")
+
+    if not any(k.startswith(prefix) for k in env):
+        # Total absence is "no supported handoff", the unmanaged case.
+        return ("unmanaged", v)
+
+    if env.get("UMRK_RA_ACCOUNT_VERSION") != b"1":
+        v.add("unsupported-version")
+        return ("invalid-handoff", v)
+
+    state_b = env.get("UMRK_RA_ACCOUNT_STATE")
+    if state_b is None:
+        v.add("missing-account-state")
+        return ("invalid-handoff", v)
+    try:
+        state = state_b.decode("ascii")
+    except UnicodeDecodeError:
+        state = ""
+    if state not in RA_ACCOUNT_STATES:
+        v.add("unknown-account-state")
+        return ("invalid-handoff", v)
+
+    user = env.get("UMRK_RA_ACCOUNT_USERNAME")
+    passwd = env.get("UMRK_RA_ACCOUNT_PASSWORD")
+    if state != "configured" and (user is not None or passwd is not None):
+        v.add("credentials-unexpected")
+
+    if state == "configured":
+        if user is None:
+            v.add("username-missing")
+        if passwd is None:
+            v.add("password-missing")
+        for value, what, limit in (
+            (user, "username", RA_ACCOUNT_USERNAME_MAX_BYTES),
+            (passwd, "password", RA_ACCOUNT_PASSWORD_MAX_BYTES),
+        ):
+            if value is None:
+                continue
+            if value == b"":
+                v.add("credential-empty")
+            if len(value) > limit:
+                v.add(f"{what}-oversized")
+            if b"\x00" in value or b"\r" in value or b"\n" in value:
+                v.add("credential-control-character")
+            try:
+                value.decode("utf-8")
+            except UnicodeDecodeError:
+                v.add("credential-invalid-utf8")
+
+    revision = env.get("UMRK_RA_ACCOUNT_REVISION")
+    if state in ("configured", "signed-out"):
+        if revision is None:
+            v.add("revision-missing")
+        else:
+            try:
+                rev_text = revision.decode("ascii")
+            except UnicodeDecodeError:
+                rev_text = ""
+            if not rev_text.isascii() or not rev_text.isdigit() or not (1 <= int(rev_text or "0") <= RA_ACCOUNT_REVISION_MAX):
+                # A non-positive value is never meaningful; an out-of-range
+                # positive one is the overflow case the producer must refuse
+                # to write. Distinguish them for the one-fixture-per-rule
+                # discipline.
+                if rev_text.isdigit() and int(rev_text) > RA_ACCOUNT_REVISION_MAX:
+                    v.add("revision-overflow")
+                else:
+                    v.add("revision-invalid")
+    elif revision is not None:
+        v.add("revision-unexpected")
+
+    return ("valid-handoff" if not v else "invalid-handoff", v)
+
+
+def run_ra_account_fixtures() -> None:
+    import base64
+
+    data = load_json(os.path.join(ROOT, "standalone-ra-account-v1", "fixtures.json"))
+    for case in data["cases"]:
+        env: dict[str, bytes] = {k: s.encode("utf-8") for k, s in case.get("env", {}).items()}
+        for k, s in case.get("env_b64", {}).items():
+            env[k] = base64.b64decode(s)
+        kind, violations = classify_ra_account_env(env)
+        expected_kind = case["kind"]
+        if kind != expected_kind:
+            fail(f"standalone-ra-account-v1/{case['name']}: classified {kind!r} "
+                 f"(violations {sorted(violations)}), expected {expected_kind!r}")
+            continue
+        if expected_kind == "invalid-handoff":
+            expected = case["reason"]
+            if expected not in violations:
+                fail(f"standalone-ra-account-v1/{case['name']}: expected reason "
+                     f"{expected!r}, got violations {sorted(violations)}")
+                continue
+        elif violations:
+            fail(f"standalone-ra-account-v1/{case['name']}: expected no violations, "
+                 f"got {sorted(violations)}")
+            continue
+        suffix = f" -> {case['reason']}" if expected_kind == "invalid-handoff" else ""
+        ok(f"standalone-ra-account-v1/{case['name']}{suffix}")
+
+    # The normative page lists every rejection reason in one table; each one
+    # must be proved by a fixture, and no fixture may name an undocumented one.
+    import re
+
+    doc_path = os.path.join(os.path.dirname(os.path.dirname(ROOT)), "docs", "standalone-ra-account.md")
+    with open(doc_path, encoding="utf-8") as handle:
+        doc = handle.read()
+    section = doc.split("## Rejection reasons", 1)[1].split("\n## ", 1)[0]
+    documented = set(re.findall(r"^\| `([a-z0-9-]+)` \|", section, re.MULTILINE))
+    proved = {c["reason"] for c in data["cases"] if c["kind"] == "invalid-handoff"}
+    if documented != proved:
+        fail("standalone-ra-account-v1: docs/standalone-ra-account.md reasons "
+             f"{sorted(documented - proved)} have no fixture; fixture reasons "
+             f"{sorted(proved - documented)} are undocumented")
+    else:
+        ok(f"standalone-ra-account-v1: all {len(documented)} documented reasons have a fixture")
+
+
+# ---------------------------------------------------------------------------
 # LIFE-1 subscription fixtures
 # ---------------------------------------------------------------------------
 
@@ -692,6 +837,7 @@ def run_redaction_fixture() -> None:
 def main() -> None:
     run_manifest_fixtures()
     run_path2_fixtures()
+    run_ra_account_fixtures()
     run_subscription_fixtures()
     run_wire_fixtures()
     run_supervisor_state_fixtures()

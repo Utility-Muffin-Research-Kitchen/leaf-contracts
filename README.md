@@ -31,6 +31,7 @@ Stdlib-only Python. No install step.
 | `THEME-1` | a theme package: its layout, `theme.json`, images, and archive limits | [`docs/themes.md`](docs/themes.md) |
 | `SVC-1` | the `service` block a service pak declares | `contracts/leaf-services/README.md` |
 | `CTL-1`, `LIFE-1`, `PATH-2`, `PKG-1`, `TXN-1` | control IPC, game coordination, source paths, packaging, transactions | as above |
+| `standalone-ra-account-v1` | the RetroAchievements account snapshot the launcher hands to an authorized standalone emulator | [`docs/standalone-ra-account.md`](docs/standalone-ra-account.md) |
 
 ```text
 contracts/
@@ -40,6 +41,7 @@ contracts/
 docs/
   content-paks.md   normative field-by-field text for the content-pak contracts
   themes.md         normative field-by-field text for the theme package
+  standalone-ra-account.md  normative text for the standalone RA account handoff
 ```
 
 `contracts/leaf-services/scripts/minischema.py` is the small JSON-Schema
