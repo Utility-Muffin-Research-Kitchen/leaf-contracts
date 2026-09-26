@@ -269,6 +269,13 @@ def theme_zip(root: str, files: dict, *, extra: list[dict] | None = None,
 # --------------------------------------------------------------------------
 
 def valid_fixtures():
+    files = base_files("cc-by-nc-sa", license="CC-BY-NC-SA-2.0")
+    files["LICENSE.txt"] = (
+        b"Fixture artwork by Leaf Contracts. CC BY-NC-SA 2.0.\n"
+        b"https://creativecommons.org/licenses/by-nc-sa/2.0/\n")
+    yield ("cc-by-nc-sa", theme_zip("cc-by-nc-sa", files), [], [],
+           "a theme declaring CC BY-NC-SA 2.0 with its license notice")
+
     yield ("colors-only", theme_zip("colors-only", {
         "theme.json": manifest_bytes(manifest(
             "colors-only", name="Colors Only",
