@@ -106,7 +106,7 @@ of the folders above.
 | `author` | yes | 1-60 characters and at most 63 UTF-8 bytes, same character rules as `name`. Display text only. | `theme-author-invalid` |
 | `version` | yes | `MAJOR.MINOR.PATCH`, each component 0-9999 with no leading zeros: `^(0\|[1-9][0-9]{0,3})\.(0\|[1-9][0-9]{0,3})\.(0\|[1-9][0-9]{0,3})$`. | `theme-version-invalid` |
 | `min_leaf_version` | yes | The `version` grammar, and at least `0.12.0`, the first release with user themes. | `theme-min-leaf-version` |
-| `license` | yes | Exactly one of `CC-BY-4.0`, `CC-BY-SA-4.0`, `CC0-1.0`, `redistribution-permitted`. | `theme-unknown-license` |
+| `license` | yes | Exactly one of `CC-BY-4.0`, `CC-BY-SA-4.0`, `CC-BY-NC-SA-2.0`, `CC0-1.0`, `redistribution-permitted`. | `theme-unknown-license` |
 | `description` | no | A string of at most 300 characters. No control characters except line feed (U+000A). | `theme-description-invalid` |
 | `grid` | no | An object with **both** `cols` (integer 1-8) and `rows` (integer 1-6). The launcher applies the recommendation only as a pair; the user's Grid Size setting still wins. | `theme-grid-invalid` |
 | `colors` | no | An object. `text`, `highlight`, `highlight_text`, `underlay`, `tile_border`, `focus_ring` are each `#RRGGBB` or `#RRGGBBAA` (hex digits in either case; no alpha means opaque). | `theme-color-invalid` |
@@ -121,6 +121,11 @@ omits one keeps the value Leaf would otherwise use.
 The byte limits on `name` and `author` match the launcher's fixed buffers, so
 an accepted name is never cut off in the middle of a character. The JSON
 Schema cannot express them; the reference validator enforces them.
+
+`CC-BY-NC-SA-2.0` names Creative Commons Attribution-NonCommercial-ShareAlike
+2.0 Generic. It must not be replaced by `CC-BY-SA-4.0` or
+`redistribution-permitted` to fit a reader's license list. Leaf 0.12.0 test
+builds up to beta 6 predate this license value and refuse themes using it.
 
 #### Reading theme.json
 
