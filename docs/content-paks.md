@@ -227,6 +227,49 @@ layout for the whole device, not just the pak, which is why it is checked
 against the same function the release catalog is checked against, and not
 merely against a regex.
 
+### Menu on a content-pak path core
+
+For a provider-bound `type: "path"` core, `supports_menu` declares how your
+emulator uses the built-in **MENU** button:
+
+- With `false` (the default), a tap requests session exit with SIGTERM. The
+  child receives no built-in Menu events, including during declined chords.
+  Repeated built-in taps never escalate to SIGKILL.
+- With `true`, an unchorded tap delivers one logical Guide tap (`BTN_MODE`):
+  a synthetic press followed by a release, after you release physical **MENU**.
+  Bind your emulator's menu to Guide normally; no signal handler is required.
+  A chord or an escape hold delivers no Guide tap. When Leaf declines a
+  **MENU** chord, the other button still reaches the emulator.
+
+With either value, holding built-in **MENU** alone invokes Leaf's escape
+gesture: SIGTERM after the escape threshold, then SIGKILL only if the same
+eligible hold continues for at least two seconds after SIGTERM was sent and
+the originating session is still running. Releasing **MENU** or using another
+built-in button, D-pad, stick outside its calibrated deadzone, Volume, or Power
+cancels pending escalation. A control already held when **MENU** goes down
+also disqualifies that press. Cancellation suppresses its eventual tap;
+returning a control to neutral cannot re-arm it. A fresh hold starts a fresh
+threshold interval. Screen-off, sleep, input reset, proxy shutdown, and session
+exit or replacement cancel the gesture and pending escalation. No Leaf OSD
+appears over the standalone session.
+
+The delayed tap, chord suppression, and escape guarantees apply **only to the
+built-in Menu button**. External controllers remain direct, ungrabbed devices:
+
+- With `true`, external **Guide** reaches the emulator as its raw press and
+  release. Leaf neither quits nor synthesizes an additional virtual tap.
+- With `false`, external **Guide** requests SIGTERM on press; another press
+  at least two seconds later can request SIGKILL. The child also receives the
+  raw events, so leave Guide unbound if you want it to act only as quit.
+- External Guide chords are unfiltered, and holding external Guide invokes
+  no Leaf escape gesture. Leaf emits no duplicate Guide tap on the virtual pad.
+
+Release-owned standalones and native PICO-8 retain their existing Menu
+integrations. A path pak setting `supports_menu: true` **must** set
+`min_leaf_version` to the first Leaf release containing this Menu contract
+(W4), or a later release it requires. Earlier Leaf versions do not implement
+this flag's Menu behavior and may quit the session instead.
+
 ### `provides.system_extensions[]`
 
 The **only** way a pak may touch an existing system. It has exactly two
