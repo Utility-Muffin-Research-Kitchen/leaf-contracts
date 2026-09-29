@@ -83,8 +83,8 @@ WARNINGS = (
     "theme-no-art",
 )
 
-LICENSES = ("CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-NC-SA-2.0", "CC0-1.0",
-            "redistribution-permitted")
+LICENSES = ("CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-NC-SA-2.0", "CC-BY-NC-SA-4.0",
+            "CC0-1.0", "redistribution-permitted")
 
 # Folder names a Leaf release ships in Themes/ and replaces wholesale on
 # every install (bundled-themes.txt). Compared case-insensitively: the card
