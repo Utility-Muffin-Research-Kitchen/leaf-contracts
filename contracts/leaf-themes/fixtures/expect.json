@@ -322,6 +322,12 @@
       "note": "1.0 is not MAJOR.MINOR.PATCH (it is the bundled Sample's version)"
     },
     {
+      "file": "valid/cc-by-nc-sa-4.zip",
+      "reasons": [],
+      "warnings": [],
+      "note": "a theme declaring CC BY-NC-SA 4.0 with its license notice"
+    },
+    {
       "file": "valid/cc-by-nc-sa.zip",
       "reasons": [],
       "warnings": [],
