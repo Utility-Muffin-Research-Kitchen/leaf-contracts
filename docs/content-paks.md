@@ -182,7 +182,8 @@ and covers only these selection checks:
   supports the content being launched, and any launch preflight specific to
   that core (for example native PICO-8's) passes.
 - A `type: "retroarch"` core is available when it is packaged and that exact
-  core file resolves.
+  core file resolves. A `frontend` on it does not change this; it is checked
+  at launch (see [Pak-supplied RetroArch frontend](#pak-supplied-retroarch-frontend)).
 
 Everything after selection belongs to that launch and never falls back. If a
 later check fails — an explicitly chosen BIOS file that is missing or invalid,
@@ -211,6 +212,7 @@ A pak that relies on its `default_core` starting first sets
 | `file_name` | `retroarch` only | Pak-relative path to an existing regular file | `missing-core-file-name`, path reasons |
 | `info_name` | `retroarch` only | Pak-relative path to an existing regular `.info` file | `missing-core-info-name`, path reasons |
 | `config_folder` | `retroarch` only | Must pass `jw_ra_core_folder_is_safe` | `missing-config-folder`, `unsafe-config-folder` |
+| `frontend` | `retroarch` only, optional | Object with exactly `path` and `protocol`; see [Pak-supplied RetroArch frontend](#pak-supplied-retroarch-frontend) | `malformed-frontend`, `unknown-frontend-protocol`, path reasons |
 | `path` | `path` only | Pak-relative path to an existing regular **executable** | `missing-core-path`, path reasons |
 | `supports_menu` | no | boolean; defaults `false` | `malformed-core-flag` |
 | `supports_savestate` | no | boolean; defaults `false` | `malformed-core-flag` |
@@ -218,7 +220,7 @@ A pak that relies on its `default_core` starting first sets
 | `needs_swap` | no | boolean; defaults `false` | `malformed-core-flag` |
 
 A `retroarch` core may not carry `path`, and a `path` core may not carry
-`libretro_name`, `file_name`, `info_name`, or `config_folder`
+`libretro_name`, `file_name`, `info_name`, `config_folder`, or `frontend`
 (`core-type-field-mismatch`).
 
 `config_folder` is used by RetroArch **verbatim as a FAT32 directory
@@ -226,6 +228,73 @@ component** for `Saves/` and `States/`. An unsafe value corrupts the save
 layout for the whole device, not just the pak, which is why it is checked
 against the same function the release catalog is checked against, and not
 merely against a regex.
+
+### Pak-supplied RetroArch frontend
+
+A `retroarch` core normally runs in the RetroArch that Leaf ships. When the
+core cannot load there (for example a core that only exists for 32-bit ARM),
+the pak can ship its own RetroArch build and declare it on the core:
+
+```json
+{
+  "id": "mysaturn",
+  "display_name": "My Saturn Core",
+  "type": "retroarch",
+  "libretro_name": "mysaturn",
+  "file_name": "cores/mysaturn_libretro.so",
+  "info_name": "info/mysaturn_libretro.info",
+  "config_folder": "MySaturn",
+  "frontend": { "path": "frontend/retroarch.sh", "protocol": "leaf-ra-1" }
+}
+```
+
+| Field | Required | Rule | Reason |
+| --- | --- | --- | --- |
+| `frontend` | no | An object with exactly `path` and `protocol`. Anything else (a string, an array, an unknown key inside it) is refused. | `malformed-frontend` |
+| `frontend.path` | yes | Pak-relative path to an existing regular **executable**. A missing, empty, or non-string value is refused. | `malformed-frontend`, path reasons |
+| `frontend.protocol` | yes | Exactly `leaf-ra-1`. Absent, or any other value, is refused. | `unknown-frontend-protocol` |
+
+`frontend` does not replace any other `retroarch` field. `libretro_name`,
+`file_name`, `info_name`, and `config_folder` are still required, and the pak
+still ships the core file and its `.info`. `config_folder` follows the same
+rules as for every `retroarch` core, and it must name the folder RetroArch
+sorts the core's saves, states and thumbnails into, which is the name the
+core reports to RetroArch as its library name. Leaf and its in-game menu look
+for states there (`States/<config_folder>/<content>.stateN` and its `.png`),
+so a mismatch hides the player's saves. The validator cannot check it.
+
+**Who launches it.** Leaf does, not the pak. When the player launches a game
+on this core, Leaf runs the frontend in place of its own RetroArch binary,
+with the same arguments and the same generated configuration file it would
+give its own RetroArch. The pak's `launch.sh` is not involved. The session is
+a RetroArch session: Leaf's in-game menu, Game Switcher, power-hold save,
+boot resume and shader picker apply to it, provided the frontend answers
+Leaf's capability probe (a frontend that does not is run as a plain frontend,
+with Menu forwarded to it as a Guide tap). The argument list, the
+configuration file, the UDP command interface, the exit rules and the
+capability probe are specified in
+[`leaf-retroarch-frontend.md`](leaf-retroarch-frontend.md) (**LEAF-RA-1**).
+
+**Availability and launch errors.** Availability is unchanged: a `retroarch`
+core is available when it is packaged and its core file resolves. The
+frontend is checked when the launch starts (it exists, is a regular
+executable, and is inside the installed pak). If that check or the exec
+fails, the launch stops with an error. As for every check after selection,
+Leaf never falls back to its own RetroArch or to another core.
+
+**Catalog.** An accepted core entry is copied into the merged `cores.json`
+as written, so `frontend` appears on the merged core row unchanged and still
+pak-relative. `frontend.path` is a declared file like `file_name`: it is
+fingerprinted in the contributor's CAT-1 `files[]`, so replacing the frontend
+without editing `provides` invalidates the stamp.
+
+**Compatibility.** `provides.schema` stays `1`; `frontend` is an optional
+addition. A Leaf that predates the field refuses the pak with `unknown-field`
+rather than ignoring the field and launching the core in the wrong RetroArch.
+A pak that declares `frontend` **must** set `min_leaf_version` to the first
+Leaf release that implements it, so the store never offers it to a Leaf that
+would refuse it. A pak that should keep working on older Leaf ships an earlier
+version without `frontend` and gates the two versions separately.
 
 ### Menu on a content-pak path core
 
@@ -293,8 +362,8 @@ an override (D9).
 ### Path rules
 
 Every path field in `provides` — `icon_flat`, `icon_photographic`,
-`file_name`, `info_name`, `path` — is **relative to the pak root**. This is
-SVC-1's `run.path` rule verbatim, including its reason slugs:
+`file_name`, `info_name`, `path`, `frontend.path` — is **relative to the pak
+root**. This is SVC-1's `run.path` rule verbatim, including its reason slugs:
 
 | Rule | Reason |
 | --- | --- |
@@ -303,7 +372,7 @@ SVC-1's `run.path` rule verbatim, including its reason slugs:
 | Must resolve inside the pak after resolving **every** path component, not just the leaf | `escaping-symlink` |
 | Must exist | `missing-file` |
 | Must be a regular file | `non-regular-file` |
-| A `type: "path"` target must be executable | `not-executable` |
+| A `type: "path"` core's `path` and a `frontend.path` must be executable | `not-executable` |
 
 **Absolute paths are not merely inelegant here — they are broken.** MLP1's SD
 card mounts at `/mnt/sdcard` or `/media/sdcard1` and the two swap across
@@ -368,6 +437,29 @@ pak did nothing.
 Dependency cleanup is part of the merge, not an afterthought, and it is
 **iterated to a fixed point**: refusing a core can refuse a system, which can
 in turn strand an extension that named it.
+
+### What an accepted core becomes
+
+An accepted pak core is copied into the merged `cores.json` verbatim, with
+three fields the compiler sets: `provider` (the pak's install path),
+`status: "packaged"` and `requires_direct_drm: false`. Nothing the pak wrote is
+rewritten, and paths stay pak-relative. In particular a `frontend` object
+reaches the merged core row exactly as declared:
+
+```json
+{
+  "id": "mysnes32",
+  "type": "retroarch",
+  "frontend": { "path": "frontend/retroarch.sh", "protocol": "leaf-ra-1" },
+  "provider": "mlp1/MySnes32.pak",
+  "status": "packaged",
+  "requires_direct_drm": false
+}
+```
+
+(Other fields omitted.) The launcher resolves `frontend.path` against the
+provider's live install path when it launches, exactly as it resolves
+`file_name`. The merge fixture `accept-frontend-core` asserts this by hand.
 
 ---
 
@@ -834,10 +926,10 @@ UTF-8 byte order.
   pak: `jw_storage_source.id` is `"primary"` or an index, so every pak on one
   card shares it.
 - `provides_sha256` is `SHA-256(canonical_bytes(provides))`.
-- `files[]` fingerprints **every declared file**. This is what makes
-  swapping or deleting a `.so` without editing `provides` invalidate the
-  stamp — the compiler's `status` output asserted that file was present and
-  usable.
+- `files[]` fingerprints **every declared file**, a core's `frontend.path`
+  included. This is what makes swapping or deleting a `.so` without editing
+  `provides` invalidate the stamp — the compiler's `status` output asserted
+  that file was present and usable.
 - `base.info_sha256` covers the release `.info` directory. Those files are
   *materialized* into the generation, so they are compile inputs like any
   other; leaning on `release_id` alone would miss a partial manual copy that
@@ -1032,5 +1124,6 @@ freeze:
 
 ## Related
 
+- [`leaf-retroarch-frontend.md`](leaf-retroarch-frontend.md) — LEAF-RA-1, the protocol a pak-supplied RetroArch frontend speaks
 - [`../contracts/leaf-content/`](../contracts/leaf-content/) — schemas, fixtures, and reference models
 - [`../contracts/leaf-services/README.md`](../contracts/leaf-services/README.md) — the public SVC-1-family contract guide

@@ -31,6 +31,7 @@ BIOS_DIR_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 ARCHIVE_MODES = {"pass_through", "extract", "none"}
 M3U_MODES = {"none", "auto", "manual"}
 CORE_TYPES = {"retroarch", "path"}
+FRONTEND_PROTOCOLS = {"leaf-ra-1"}
 
 FORBIDDEN_FIELDS = {
     "requires_direct_drm": "forbidden-requires-direct-drm",
@@ -52,9 +53,11 @@ SYSTEM_KEYS = {
 
 CORE_KEYS = {
     "id", "display_name", "type", "libretro_name", "file_name", "info_name",
-    "config_folder", "path", "supports_menu", "supports_savestate",
+    "config_folder", "frontend", "path", "supports_menu", "supports_savestate",
     "supports_disk_control", "needs_swap",
 }
+
+FRONTEND_KEYS = {"path", "protocol"}
 
 EXTENSION_KEYS = {"system_id", "add_alternate_cores"}
 
@@ -62,7 +65,8 @@ CORE_BOOL_KEYS = (
     "supports_menu", "supports_savestate", "supports_disk_control", "needs_swap",
 )
 
-RETROARCH_ONLY = ("libretro_name", "file_name", "info_name", "config_folder")
+RETROARCH_ONLY = ("libretro_name", "file_name", "info_name", "config_folder",
+                  "frontend")
 
 MAX_ARRAY = 32
 
@@ -348,6 +352,8 @@ def _validate_core(core, pak_dir: str) -> set[str]:
             v.add("missing-config-folder")
         elif not core_folder_is_safe(core["config_folder"]):
             v.add("unsafe-config-folder")
+        if "frontend" in core:
+            v |= _validate_frontend(core["frontend"], pak_dir)
     else:  # path
         if any(k in core for k in RETROARCH_ONLY):
             v.add("core-type-field-mismatch")
@@ -356,6 +362,35 @@ def _validate_core(core, pak_dir: str) -> set[str]:
         else:
             v |= check_path(core["path"], pak_dir, require_executable=True)
 
+    return v
+
+
+def _validate_frontend(frontend, pak_dir: str) -> set[str]:
+    """A pak-supplied RetroArch frontend (LEAF-RA-1).
+
+    The shape is checked before the filesystem, so a frontend that is not an
+    object, or whose `path` is not a non-empty string, is `malformed-frontend`
+    and never reaches check_path (which would call it a missing file). The
+    protocol is a separate reason because it is the one field a newer pak can
+    legitimately get "wrong": naming a protocol this reader does not speak.
+    The path then follows the path-core rule exactly, executable bit included.
+    """
+    v: set[str] = set()
+    if not isinstance(frontend, dict):
+        v.add("malformed-frontend")
+        return v
+    if set(frontend) - FRONTEND_KEYS:
+        v.add("malformed-frontend")
+
+    path = frontend.get("path")
+    if not isinstance(path, str) or not path:
+        v.add("malformed-frontend")
+    else:
+        v |= check_path(path, pak_dir, require_executable=True)
+
+    protocol = frontend.get("protocol")
+    if not isinstance(protocol, str) or protocol not in FRONTEND_PROTOCOLS:
+        v.add("unknown-frontend-protocol")
     return v
 
 

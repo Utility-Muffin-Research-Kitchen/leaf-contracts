@@ -182,6 +182,47 @@ def write_fixture(base_dir: str, name: str, pak: dict, expect: dict,
         os.symlink(target, path)
 
 
+# A pak-supplied RetroArch frontend (LEAF-RA-1). The pak adds an alternate
+# core to an existing system, which is the real shape: the frontend exists to
+# run a libretro core the release RetroArch cannot load.
+FRONTEND_CORE = {
+    "id": "mysaturn",
+    "display_name": "My Saturn Core",
+    "type": "retroarch",
+    "libretro_name": "mysaturn",
+    "file_name": "cores/mysaturn_libretro.so",
+    "info_name": "info/mysaturn_libretro.info",
+    "config_folder": "MySaturn",
+    "frontend": {"path": "frontend/retroarch.sh", "protocol": "leaf-ra-1"},
+}
+
+FRONTEND_FILES = {
+    "cores/mysaturn_libretro.so": "ELF",
+    "info/mysaturn_libretro.info": "display_name = \"My Saturn Core\"\n",
+}
+
+
+def frontend_variant(**core_edits) -> dict:
+    """A cores-plus-extension pak whose one core carries a frontend.
+
+    A value of DELETE removes the core key instead of setting it.
+    """
+    pak = variant(
+        name="MySaturn",
+        provides__systems=[],
+        provides__system_extensions=[{"system_id": "SATURN",
+                                      "add_alternate_cores": ["mysaturn"]}],
+    )
+    core_entry = copy.deepcopy(FRONTEND_CORE)
+    for key, value in core_edits.items():
+        if value is DELETE:
+            core_entry.pop(key, None)
+        else:
+            core_entry[key] = value
+    pak["provides"]["cores"] = [core_entry]
+    return pak
+
+
 def bad(reason: str, note: str = "") -> dict:
     expect = {"valid": False, "reason": reason}
     if note:
@@ -246,6 +287,16 @@ def generate_valid() -> None:
                   good("a type:\"path\" standalone emulator instead of a "
                        "libretro core; the target must be executable"),
                   executable=["emulators/mystandalone/launch.sh"])
+
+    write_fixture(VALID_DIR, "retroarch-core-with-frontend", frontend_variant(),
+                  good("a type:\"retroarch\" core that ships its own RetroArch "
+                       "frontend, added to an existing system through "
+                       "system_extensions; the frontend must be executable. "
+                       "min_leaf_version is the shared fixture default: a "
+                       "real pak declaring frontend sets the first Leaf "
+                       "release that implements it"),
+                  files=FRONTEND_FILES,
+                  executable=["frontend/retroarch.sh"])
 
     ext_only = variant(
         provides__systems=[],
@@ -427,6 +478,47 @@ def generate_invalid() -> None:
                       "validator never infers intent from which fields "
                       "happen to be present"),
                   executable=["emulators/mystandalone/launch.sh"])
+    write_fixture(INVALID_DIR, "frontend-on-path-core",
+                  variant(system__default_core="mystandalone",
+                          provides__cores=[{
+                              "id": "mystandalone",
+                              "display_name": "My Standalone",
+                              "type": "path",
+                              "path": "emulators/mystandalone/launch.sh",
+                              "frontend": {"path": "frontend/retroarch.sh",
+                                           "protocol": "leaf-ra-1"},
+                          }]),
+                  bad("core-type-field-mismatch",
+                      "frontend belongs to a retroarch core: a path core is "
+                      "its own executable, so it has no RetroArch to replace"),
+                  executable=["emulators/mystandalone/launch.sh",
+                              "frontend/retroarch.sh"])
+    write_fixture(INVALID_DIR, "malformed-frontend",
+                  frontend_variant(frontend="frontend/retroarch.sh"),
+                  bad("malformed-frontend",
+                      "frontend is an object with exactly path and protocol; "
+                      "a bare string is the likeliest slip. A missing or "
+                      "non-string path and an unknown key are the same reason"),
+                  files=FRONTEND_FILES,
+                  executable=["frontend/retroarch.sh"])
+    write_fixture(INVALID_DIR, "unknown-frontend-protocol",
+                  frontend_variant(frontend={"path": "frontend/retroarch.sh",
+                                             "protocol": "leaf-ra-2"}),
+                  bad("unknown-frontend-protocol",
+                      "a protocol this reader does not speak is refused, "
+                      "never guessed at, so a pak written for a later "
+                      "protocol cannot be run through the wrong one"),
+                  files=FRONTEND_FILES,
+                  executable=["frontend/retroarch.sh"])
+    write_fixture(INVALID_DIR, "frontend-not-executable",
+                  frontend_variant(),
+                  bad("not-executable",
+                      "the frontend is exec'd in place of RetroArch, so "
+                      "frontend.path gets the same executable check as a "
+                      "path core's path"),
+                  files=dict(FRONTEND_FILES,
+                             **{"frontend/retroarch.sh": "#!/bin/sh\n"}),
+                  non_executable=["frontend/retroarch.sh"])
     write_fixture(INVALID_DIR, "malformed-core-flag",
                   variant(core__supports_menu="yes"),
                   bad("malformed-core-flag"))
