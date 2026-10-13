@@ -114,10 +114,31 @@ def run_manifest_fixtures() -> None:
         ok(f"manifests/invalid/{name} -> {expected_reason}")
 
     # One fixture per rule, so a duplicated slug is either a fixture that
-    # tests nothing new or a rule with two genuinely different outcomes.
-    # D16's shared rule is the only sanctioned exception.
+    # tests nothing new or a rule with two genuinely different outcomes. The
+    # sanctioned exceptions are named, fixture by fixture, so a third claimant
+    # of any slug still fails:
+    #   - D16's shared rule has two outcomes (pure stays hidden, hybrid stays
+    #     launchable).
+    #   - A reason slug is vocabulary, not a rule. `frontend` reuses two
+    #     existing slugs through rules of its own (retroarch-only field on a
+    #     path core; executable check on frontend.path), and each of those
+    #     checks has its own call site that only its own fixture can pin.
+    sanctioned_duplicates = {
+        "shared-content-unsupported": {
+            "shared-content-unsupported-pure",
+            "shared-content-unsupported-hybrid",
+        },
+        "core-type-field-mismatch": {
+            "core-type-field-mismatch",
+            "frontend-on-path-core",
+        },
+        "not-executable": {
+            "not-executable",
+            "frontend-not-executable",
+        },
+    }
     for reason, names in sorted(seen_reasons.items()):
-        if len(names) > 1 and reason != "shared-content-unsupported":
+        if len(names) > 1 and set(names) != sanctioned_duplicates.get(reason):
             fail(f"reason {reason!r} claimed by {len(names)} fixtures: {names}")
 
     print(f"CONTENT-1 manifests: {len(os.listdir(valid_dir))} valid, "
@@ -221,6 +242,23 @@ def run_merge_fixtures() -> None:
         if diagnostics != case["diagnostics"]:
             fail(f"merge/{case['name']}: diagnostic detail differs from the "
                  f"recorded fixture")
+            continue
+        # Hand-asserted fields on named merged cores, for fields a pass-through
+        # rule would otherwise agree with by construction (see
+        # gen_merge_fixtures.py).
+        core_rows = {c["id"]: c for c in merged["cores"]}
+        field_failure = None
+        for core_id, fields in case.get("expect_core_fields", {}).items():
+            row = core_rows.get(core_id)
+            if row is None:
+                field_failure = f"core {core_id} is not in the merged output"
+            else:
+                for key, want in fields.items():
+                    if row.get(key) != want:
+                        field_failure = (f"core {core_id} field {key} is "
+                                         f"{row.get(key)!r}, hand-asserted {want!r}")
+        if field_failure:
+            fail(f"merge/{case['name']}: {field_failure}")
             continue
         # Byte-identical, not merely equal: Jawaka's compiler has to produce
         # these exact bytes, so the fixture records the hash of them.

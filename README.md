@@ -28,6 +28,7 @@ Stdlib-only Python. No install step.
 | `CONTENT-ART-1` | optional system wordmarks in a `content_art` companion | [`docs/content-paks.md`](docs/content-paks.md) |
 | `CAT-1` | the effective catalog: generations, selector, stamp | same |
 | `STORE-CONTENT-1` | the storefront `content[]` lane | same |
+| `LEAF-RA-1` | the protocol a pak-supplied RetroArch frontend speaks: argv, configuration ownership, the UDP command set and its replies, exit | [`docs/leaf-retroarch-frontend.md`](docs/leaf-retroarch-frontend.md) |
 | `THEME-1` | a theme package: its layout, `theme.json`, images, and archive limits | [`docs/themes.md`](docs/themes.md) |
 | `SVC-1` | the `service` block a service pak declares | `contracts/leaf-services/README.md` |
 | `CTL-1`, `LIFE-1`, `PATH-2`, `PKG-1`, `TXN-1` | control IPC, game coordination, source paths, packaging, transactions | as above |
@@ -40,6 +41,7 @@ contracts/
   leaf-themes/      THEME-1 schema, fixture archives, reference validator
 docs/
   content-paks.md   normative field-by-field text for the content-pak contracts
+  leaf-retroarch-frontend.md  normative text for LEAF-RA-1, pak-supplied RetroArch frontends
   themes.md         normative field-by-field text for the theme package
   standalone-ra-account.md  normative text for the standalone RA account handoff
 ```

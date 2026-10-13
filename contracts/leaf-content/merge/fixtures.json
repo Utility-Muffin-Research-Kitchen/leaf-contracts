@@ -298,6 +298,132 @@
       "expected_sha256": "5d835535f5bde61b1e7721d69b0ef4124aefacd5d21d0cc228cde2a186c169ea"
     },
     {
+      "name": "accept-frontend-core",
+      "note": "a retroarch core that ships its own RetroArch frontend (LEAF-RA-1), added to an existing system. The merge copies an accepted core entry through verbatim, so `frontend` reaches the merged core row unchanged and still pak-relative, beside the generated provider and status.",
+      "contributors": [
+        {
+          "provider": "mlp1/MySnes32.pak",
+          "provides": {
+            "schema": 1,
+            "systems": [],
+            "cores": [
+              {
+                "id": "mysnes32",
+                "display_name": "My SNES Core (32-bit)",
+                "type": "retroarch",
+                "libretro_name": "mysnes32",
+                "file_name": "cores/mysnes32_libretro.so",
+                "info_name": "info/mysnes32_libretro.info",
+                "config_folder": "MySnes32",
+                "frontend": {
+                  "path": "frontend/retroarch.sh",
+                  "protocol": "leaf-ra-1"
+                }
+              }
+            ],
+            "system_extensions": [
+              {
+                "system_id": "SNES",
+                "add_alternate_cores": [
+                  "mysnes32"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect_core_fields": {
+        "mysnes32": {
+          "frontend": {
+            "path": "frontend/retroarch.sh",
+            "protocol": "leaf-ra-1"
+          },
+          "provider": "mlp1/MySnes32.pak",
+          "status": "packaged",
+          "requires_direct_drm": false
+        }
+      },
+      "expect_diagnostics": [],
+      "diagnostics": [],
+      "expected": {
+        "platform": "mlp1",
+        "systems": [
+          {
+            "id": "PSX",
+            "name": "PlayStation",
+            "patterns": [
+              "PSX"
+            ],
+            "extensions": [
+              "cue",
+              "chd"
+            ],
+            "rom_root": "Roms/PSX",
+            "image_root": "Images/PSX",
+            "default_core": "pcsx_rearmed",
+            "alternate_cores": []
+          },
+          {
+            "id": "SNES",
+            "name": "Super Nintendo",
+            "patterns": [
+              "SNES",
+              "snes"
+            ],
+            "extensions": [
+              "sfc",
+              "smc"
+            ],
+            "rom_root": "Roms/SNES",
+            "image_root": "Images/SNES",
+            "default_core": "snes9x",
+            "alternate_cores": [
+              "mysnes32"
+            ]
+          }
+        ],
+        "cores": [
+          {
+            "id": "mysnes32",
+            "display_name": "My SNES Core (32-bit)",
+            "type": "retroarch",
+            "libretro_name": "mysnes32",
+            "file_name": "cores/mysnes32_libretro.so",
+            "info_name": "info/mysnes32_libretro.info",
+            "config_folder": "MySnes32",
+            "frontend": {
+              "path": "frontend/retroarch.sh",
+              "protocol": "leaf-ra-1"
+            },
+            "provider": "mlp1/MySnes32.pak",
+            "status": "packaged",
+            "requires_direct_drm": false
+          },
+          {
+            "id": "pcsx_rearmed",
+            "display_name": "PCSX ReARMed",
+            "type": "retroarch",
+            "libretro_name": "pcsx_rearmed",
+            "file_name": "pcsx_rearmed_libretro.so",
+            "info_name": "pcsx_rearmed_libretro.info",
+            "config_folder": "PCSX-ReARMed",
+            "status": "packaged"
+          },
+          {
+            "id": "snes9x",
+            "display_name": "Snes9x",
+            "type": "retroarch",
+            "libretro_name": "snes9x",
+            "file_name": "snes9x_libretro.so",
+            "info_name": "snes9x_libretro.info",
+            "config_folder": "Snes9x",
+            "status": "packaged"
+          }
+        ]
+      },
+      "expected_sha256": "6559ada7918709a75bef8af2b90d05a84a91bb8a09a16450745c0543d41dc797"
+    },
+    {
       "name": "base-collision-system-id",
       "note": "a systems[] entry whose id already exists is a COLLISION, not an override. Overriding a first-party system is a non-goal.",
       "contributors": [

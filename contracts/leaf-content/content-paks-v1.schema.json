@@ -182,11 +182,21 @@
         }
       }
     },
+    "frontend": {
+      "type": "object",
+      "required": ["path", "protocol"],
+      "additionalProperties": false,
+      "description": "Retroarch cores only. A pak-supplied RetroArch frontend that Leaf launches in place of its own RetroArch binary. `path` is a pak-relative regular executable (existence, regular-file and executable checks are business logic). `protocol` names the LEAF-RA-1 command protocol the frontend speaks; docs/leaf-retroarch-frontend.md is normative.",
+      "properties": {
+        "path": { "$ref": "#/definitions/relative_path" },
+        "protocol": { "type": "string", "enum": ["leaf-ra-1"] }
+      }
+    },
     "core": {
       "type": "object",
       "required": ["id", "display_name", "type"],
       "additionalProperties": false,
-      "description": "Per-type required/forbidden field pairing (retroarch needs libretro_name/file_name/info_name/config_folder and forbids path; path needs path and forbids the others) is business logic, not encoded here.",
+      "description": "Per-type required/forbidden field pairing (retroarch needs libretro_name/file_name/info_name/config_folder, may carry frontend, and forbids path; path needs path and forbids the retroarch-only fields, frontend included) is business logic, not encoded here.",
       "properties": {
         "id": { "$ref": "#/definitions/core_id" },
         "display_name": { "type": "string", "minLength": 1, "maxLength": 64 },
@@ -200,6 +210,7 @@
           "maxLength": 255,
           "description": "RetroArch uses this verbatim as a FAT32 directory component for Saves/ and States/. Checked against jw_ra_core_folder_is_safe, not merely against a length bound."
         },
+        "frontend": { "$ref": "#/definitions/frontend" },
         "path": { "$ref": "#/definitions/relative_path" },
         "supports_menu": { "type": "boolean" },
         "supports_savestate": { "type": "boolean" },

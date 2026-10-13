@@ -62,7 +62,11 @@ checks proves nothing on its own. Three things stop that here:
   `expect_diagnostics` list written by a human in
   `scripts/gen_merge_fixtures.py`. The generator refuses to write anything if
   the model disagrees with it. Two of those assertions were wrong when first
-  written, and the check caught both.
+  written, and the check caught both. A case may also carry
+  `expect_core_fields`, hand-written fields of named merged cores, for what a
+  pass-through rule would otherwise agree with by construction: the
+  `accept-frontend-core` case pins that a core's `frontend` reaches the merged
+  row unchanged.
 - **A hand-written canonical byte string.** The generation digest rule is
   locked against a literal spelled out in `gen_generation_fixtures.py`, not
   against `canonical.py`'s own output.
@@ -77,10 +81,19 @@ ignored*, so a schema could otherwise appear to enforce a rule it does not.
 ## One fixture per rule
 
 Every rejection reason has exactly one invalid manifest fixture, and the
-validator fails if a slug is claimed by two. The single sanctioned exception
-is `shared-content-unsupported`: D16's shared-lane rule has two genuinely
-different outcomes — a pure content pak stays hidden from Apps, a hybrid
-remains a launchable app — and the plan asks for both to be classified.
+validator fails if a slug is claimed by two. The sanctioned exceptions are
+named in `validate_fixtures.py`, fixture by fixture, so a third claimant of
+any slug still fails:
+
+- `shared-content-unsupported`: D16's shared-lane rule has two genuinely
+  different outcomes — a pure content pak stays hidden from Apps, a hybrid
+  remains a launchable app — and the plan asks for both to be classified.
+- `core-type-field-mismatch` and `not-executable`: a reason slug is
+  vocabulary, and the `frontend` field reuses both through rules of its own.
+  `frontend-on-path-core` pins that `frontend` is a retroarch-only field, and
+  `frontend-not-executable` pins the executable check on `frontend.path`.
+  Each check has its own call site, and only its own fixture would catch it
+  being dropped.
 
 ## How another repo references this directory
 
