@@ -586,8 +586,16 @@ game, the aggregate result is no-media and no weaker candidate is tried. Only
 an aggregate game-not-found advances to the next candidate. Cancellation,
 quota, authentication, HTTP, parse, and local errors are terminal.
 
-Filename mode is unchanged. It keeps its existing per-platform hash then
-hashless-name request order and has no effective-title fallback.
+Filename mode keeps its existing per-platform hash then hashless-name request
+order and has no effective-title fallback. Its one extra candidate is the
+user's manual display name (`game_settings.display_name`, set in Options >
+Display Name), never an imported or scanned title. It is tried only when the
+game has one and the filename lookup's aggregate result is game-not-found,
+as one name-only request per declared platform: the trimmed display name plus
+the extension of the name already sent, or the display name alone when that
+name has none. A candidate equal to the name already sent, ignoring case, is
+skipped. No-media, cancellation, quota, authentication, HTTP, parse, and local
+errors never reach it, and matching stays exact `jeuInfos.php`.
 
 Regardless of the successful candidate, artwork stays keyed to the original
 indexed filename stem and neither `games.rom_path` nor the display title is
