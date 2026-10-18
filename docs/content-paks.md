@@ -590,10 +590,10 @@ Filename mode keeps its existing per-platform hash then hashless-name request
 order and has no effective-title fallback. Its one extra candidate is the
 user's manual display name (`game_settings.display_name`, set in Options >
 Display Name), never an imported or scanned title. It is tried only when the
-game has one and the filename lookup's aggregate result is game-not-found,
-as one name-only request per declared platform: the trimmed display name plus
-the extension of the name already sent, or the display name alone when that
-name has none. A candidate equal to the name already sent, ignoring case, is
+game has one and its filename-mode lookups end in game-not-found, as one
+name-only request per declared platform: the trimmed display name plus the
+extension of the name those lookups sent, or the display name alone when that
+name has none. A candidate equal to any name already sent, ignoring case, is
 skipped. No-media, cancellation, quota, authentication, HTTP, parse, and local
 errors never reach it, and matching stays exact `jeuInfos.php`.
 
